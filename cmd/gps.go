@@ -1,0 +1,101 @@
+package main
+
+import (
+	"context"
+	"net"
+	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
+
+	gps "github.com/Resolyte-official/service-gps/pkg"
+	"github.com/Resolyte-official/service-gps/pkg/config"
+	"github.com/Resolyte-official/service-gps/pkg/endpoints"
+	"github.com/Resolyte-official/service-gps/pkg/logging"
+	"github.com/Resolyte-official/service-gps/pkg/transport"
+	"github.com/oklog/oklog/pkg/group"
+)
+
+func main() {
+	envConfig := config.NewEnvironmentConfiguration()
+
+	var lw logging.LogWriter
+	if envConfig.Env.IsProduction() {
+		lw = logging.NewJsonLogWriter(os.Stdout, logging.INFO)
+	} else {
+		lw = logging.NewTextLogWriter(os.Stdout, logging.INFO)
+	}
+
+	mainLogger := logging.NewContextLogger(lw, "Main")
+
+	mainLogger.Infof("starting gps in %s mode", envConfig.Env)
+
+	if envConfig.HttpMode.IsHttps() { // need certs
+		requireFile("configs/cert.pem")
+		requireFile("configs/key.pem")
+	}
+
+	var (
+		corsConfig = &transport.CorsOptions{
+			Origins:          envConfig.CorsOrigins,                                                                   // Allow only specified origin
+			Methods:          []string{"GET", "POST", "OPTIONS", "PUT", "UPDATE", "DELETE"},                           // Allow common HTTP methods
+			Headers:          []string{"Accept", "Content-Type", "Content-Length", "Accept-Encoding", "X-Request-ID"}, // Allow common HTTP headers
+			ExposeHeaders:    []string{"Content-Type", "X-Request-ID"},                                                // Allow any headers to be exposed
+			AllowCredentials: true,                                                                                    // Allow credentials to be included
+		}
+		service     = gps.NewService(&envConfig)
+		eps         = endpoints.NewEndpointSet(service)
+		httpHandler = transport.NewHTTPHandler(eps, &envConfig, corsConfig, lw)
+	)
+
+	var g group.Group
+
+	{
+		// http
+		httpAddr := net.JoinHostPort("0.0.0.0", envConfig.HttpPort) // net.JoinHostPort("localhost", envConfig.HttpPort)
+		srv := &http.Server{
+			Addr:    httpAddr,
+			Handler: httpHandler,
+		}
+		g.Add(func() error {
+			mainLogger.Infof("starting %s server on %s", envConfig.HttpMode, httpAddr)
+			if envConfig.HttpMode.IsHttps() {
+				return srv.ListenAndServeTLS("configs/cert.pem", "configs/key.pem")
+			}
+			return srv.ListenAndServe()
+		}, func(err error) {
+			mainLogger.ErrorNtf(err, "shutting down %s server", envConfig.HttpMode)
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			_ = srv.Shutdown(ctx)
+		})
+	}
+
+	{
+		// handles Ctrl+C
+		cancelInterrupt := make(chan struct{})
+		g.Add(func() error {
+			c := make(chan os.Signal, 1)
+			signal.Notify(c, syscall.SIGINT, syscall.SIGTERM)
+			select {
+			case sig := <-c:
+				mainLogger.Infof("received signal: %s", sig)
+				return nil
+			case <-cancelInterrupt:
+				return nil
+			}
+		}, func(error) {
+			close(cancelInterrupt)
+		})
+	}
+
+	mainLogger.Fatal(g.Run(), "stopping gps")
+}
+
+func requireFile(path string) {
+	_, err := os.Stat(path)
+	if err != nil {
+		panic(err)
+	}
+}

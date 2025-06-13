@@ -1,0 +1,13 @@
+services:
+  gps:
+    container_name: gps
+    build:
+      context: .
+      dockerfile: Dockerfile.gps
+    ports:
+      - ${GPS_HTTP_PORT}:${GPS_HTTP_PORT}
+      - ${GPS_GRPC_PORT}:${GPS_GRPC_PORT}
+    env_file:
+      - .env
+    volumes:
+      - ./configs:/root/configs
