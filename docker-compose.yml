@@ -6,7 +6,6 @@ services:
       dockerfile: Dockerfile.gps
     ports:
       - ${GPS_HTTP_PORT}:${GPS_HTTP_PORT}
-      - ${GPS_GRPC_PORT}:${GPS_GRPC_PORT}
     env_file:
       - .env
     volumes:

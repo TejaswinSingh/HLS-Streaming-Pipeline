@@ -12,7 +12,6 @@ type Configuration struct {
 	Env                GoEnv
 	HttpMode           HttpMode
 	HttpPort           string
-	GrpcPort           string
 	SecretKey          []byte
 	CorsOrigins        []string
 	GovernanceGrpcAddr string
@@ -21,7 +20,6 @@ type Configuration struct {
 const (
 	defaultCORSOrigin = ""
 	defaultHTTPPort   = "12003"
-	defaultGRPCPort   = "9093"
 )
 
 // NewEnvironmentConfiguration creates a configuration populated from os environment variables.
@@ -41,7 +39,6 @@ func NewEnvironmentConfiguration() Configuration {
 		Env:                ValidateEnv(GoEnv(os.Getenv("ENV"))),
 		HttpMode:           ValidateHttpMode(httpMode),
 		HttpPort:           envString("GPS_HTTP_PORT", defaultHTTPPort),
-		GrpcPort:           envString("GPS_GRPC_PORT", defaultGRPCPort),
 		SecretKey:          secretKey,
 		CorsOrigins:        parseStringsEnv("CORS_ORIGINS", []string{defaultCORSOrigin}),
 		GovernanceGrpcAddr: requireEnv("GOVERNANCE_GRPC_ADDR"),
