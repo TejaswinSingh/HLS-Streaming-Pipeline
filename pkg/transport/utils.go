@@ -12,6 +12,7 @@ type ResponseWriter struct {
 	http.ResponseWriter
 	status int
 	Err    string
+	UserID string
 }
 
 func (rw *ResponseWriter) WriteHeader(status int) {

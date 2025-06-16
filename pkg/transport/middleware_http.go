@@ -72,6 +72,7 @@ func TracingAndLoggingMiddleware(logger logging.Logger, envConfig *config.Config
 			defer func() {
 				logE.Status = rw.status
 				logE.Error = rw.Err
+				logE.UserID = rw.UserID
 				logE.Duration = time.Since(start).String()
 				logE.Log(logger)
 			}()
@@ -92,8 +93,6 @@ func TracingAndLoggingMiddleware(logger logging.Logger, envConfig *config.Config
 				logE.RequestID = reqID
 				ctx := context.WithValue(r.Context(), contextkeys.RequestIDKey, reqID)
 				r = r.WithContext(ctx)
-
-				// TODO: get userID from request
 			}
 
 			// call next handler
@@ -113,6 +112,9 @@ func AuthMiddleware(govClient grpcClient.GovernanceClient) func(http.Handler) ht
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
+			// custom response writer used for propagating info b/w middlewares
+			rw, _ := w.(*ResponseWriter)
+
 			cookie, err := r.Cookie(string(AccessToken))
 			if err != nil || cookie.Valid() != nil || cookie.Value == "" {
 				encodeError(r.Context(), svcErrors.ErrUnauthorized, w)
@@ -129,6 +131,9 @@ func AuthMiddleware(govClient grpcClient.GovernanceClient) func(http.Handler) ht
 			if err != nil {
 				encodeError(r.Context(), svcErrors.ErrInternalServer.WithInternalErr(err), w)
 				return
+			}
+			if claims := resp.GetClaims(); claims != nil && uuid.Validate(claims.Sub) == nil {
+				rw.UserID = claims.Sub
 			}
 			if !resp.Eft {
 				switch resp.Status {
