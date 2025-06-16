@@ -1,6 +1,7 @@
 package transport
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"slices"
@@ -8,7 +9,9 @@ import (
 	"time"
 
 	"github.com/Resolyte-official/service-gps/pkg/config"
-	myerrors "github.com/Resolyte-official/service-gps/pkg/errors"
+	"github.com/Resolyte-official/service-gps/pkg/contextkeys"
+	svcErrors "github.com/Resolyte-official/service-gps/pkg/errors"
+	grpcClient "github.com/Resolyte-official/service-gps/pkg/grpc"
 	"github.com/Resolyte-official/service-gps/pkg/logging"
 	"github.com/google/uuid"
 )
@@ -79,20 +82,67 @@ func TracingAndLoggingMiddleware(logger logging.Logger, envConfig *config.Config
 				// requestID is required
 				reqID := r.Header.Get("X-Request-ID")
 				if reqID == "" {
-					encodeError(r.Context(), myerrors.ErrMissingRequestID, rw)
+					encodeError(r.Context(), svcErrors.ErrMissingRequestID, rw)
 					return
 				}
 				if uuid.Validate(reqID) != nil {
-					encodeError(r.Context(), myerrors.ErrInvalidRequestID, rw)
+					encodeError(r.Context(), svcErrors.ErrInvalidRequestID, rw)
 					return
 				}
 				logE.RequestID = reqID
+				ctx := context.WithValue(r.Context(), contextkeys.RequestIDKey, reqID)
+				r = r.WithContext(ctx)
 
 				// TODO: get userID from request
 			}
 
 			// call next handler
 			next.ServeHTTP(rw, r)
+		})
+	}
+}
+
+type AuthToken string
+
+const (
+	AccessToken  AuthToken = "access_token"
+	RefreshToken AuthToken = "refresh_token"
+)
+
+func AuthMiddleware(govClient grpcClient.GovernanceClient) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+
+			cookie, err := r.Cookie(string(AccessToken))
+			if err != nil || cookie.Valid() != nil || cookie.Value == "" {
+				encodeError(r.Context(), svcErrors.ErrUnauthorized, w)
+				return
+			}
+
+			// grpc request to governance service for verifying token
+			resp, err := govClient.Authorize(
+				r.Context(),
+				cookie.Value, // token
+				"gps",        // obj
+				"view",       // act
+			)
+			if err != nil {
+				encodeError(r.Context(), svcErrors.ErrInternalServer.WithInternalErr(err), w)
+				return
+			}
+			if !resp.Eft {
+				switch resp.Status {
+				case http.StatusUnauthorized:
+					encodeError(r.Context(), svcErrors.ErrUnauthorized, w)
+				case http.StatusForbidden:
+					encodeError(r.Context(), svcErrors.ErrAccessDenied, w)
+				default:
+					encodeError(r.Context(), svcErrors.ErrInternalServer, w)
+				}
+				return
+			}
+
+			next.ServeHTTP(w, r)
 		})
 	}
 }

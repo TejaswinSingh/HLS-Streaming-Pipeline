@@ -12,9 +12,11 @@ import (
 	gps "github.com/Resolyte-official/service-gps/pkg"
 	"github.com/Resolyte-official/service-gps/pkg/config"
 	"github.com/Resolyte-official/service-gps/pkg/endpoints"
+	grpcClient "github.com/Resolyte-official/service-gps/pkg/grpc"
 	"github.com/Resolyte-official/service-gps/pkg/logging"
 	"github.com/Resolyte-official/service-gps/pkg/transport"
 	"github.com/oklog/oklog/pkg/group"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 func main() {
@@ -36,6 +38,13 @@ func main() {
 		requireFile("configs/key.pem")
 	}
 
+	creds := insecure.NewCredentials() // TODO: use mTLS
+	govClient, err := grpcClient.NewGovernanceClient(envConfig.GovernanceGrpcAddr, creds)
+	if err != nil {
+		panic(err)
+	}
+	defer govClient.Close()
+
 	var (
 		corsConfig = &transport.CorsOptions{
 			Origins:          envConfig.CorsOrigins,                                                                   // Allow only specified origin
@@ -46,7 +55,7 @@ func main() {
 		}
 		service     = gps.NewService(&envConfig)
 		eps         = endpoints.NewEndpointSet(service)
-		httpHandler = transport.NewHTTPHandler(eps, &envConfig, corsConfig, lw)
+		httpHandler = transport.NewHTTPHandler(eps, &envConfig, corsConfig, govClient, lw)
 	)
 
 	var g group.Group

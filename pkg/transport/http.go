@@ -10,11 +10,12 @@ import (
 	"github.com/Resolyte-official/service-gps/pkg/config"
 	"github.com/Resolyte-official/service-gps/pkg/endpoints"
 	svcErrors "github.com/Resolyte-official/service-gps/pkg/errors"
+	grpcClient "github.com/Resolyte-official/service-gps/pkg/grpc"
 	"github.com/Resolyte-official/service-gps/pkg/logging"
 	httptransport "github.com/go-kit/kit/transport/http"
 )
 
-func NewHTTPHandler(ep endpoints.Set, envConfig *config.Configuration, corsConfig *CorsOptions, lw logging.LogWriter) http.Handler {
+func NewHTTPHandler(ep endpoints.Set, envConfig *config.Configuration, corsConfig *CorsOptions, govClient grpcClient.GovernanceClient, lw logging.LogWriter) http.Handler {
 	m := http.NewServeMux()
 
 	m.Handle("GET /gps/healthz", httptransport.NewServer(
@@ -27,7 +28,8 @@ func NewHTTPHandler(ep endpoints.Set, envConfig *config.Configuration, corsConfi
 
 	logger := logging.NewContextLogger(lw, "HttpHandler")
 
-	handler := CorsMiddleware(corsConfig)(m)
+	handler := AuthMiddleware(govClient)(m)
+	handler = CorsMiddleware(corsConfig)(handler)
 	handler = TracingAndLoggingMiddleware(logger, envConfig)(handler)
 
 	return handler

@@ -31,6 +31,7 @@ vendor/
 
 # Certificates and keys
 *.pem
+.github_token
 
 # dev
 TODO

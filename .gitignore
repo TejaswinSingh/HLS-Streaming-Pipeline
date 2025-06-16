@@ -31,3 +31,4 @@ TODO
 
 # certs and keys
 *.pem
+.github_token
