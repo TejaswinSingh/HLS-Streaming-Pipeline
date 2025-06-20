@@ -13,6 +13,7 @@ import (
 )
 
 type BufferedTripStorage interface {
+	TripPath(date time.Time, schoolID, busID, tripID string) string
 	CreateTrip(path string) error
 	EndTrip(path string) error
 	// AddCoordinate(path string, coord Coordinate) error
@@ -30,6 +31,7 @@ type BufferedTripStorage interface {
 	// buffer methods
 	BufferCoordinate(path string, coord Coordinate) error
 	StartFlusher(interval time.Duration)
+	StopFlusher()
 	flushAll()
 	flushToDisk(path string, coords []Coordinate) error
 }
