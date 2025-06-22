@@ -11,6 +11,7 @@ import (
 
 	gps "github.com/Resolyte-official/service-gps/pkg"
 	"github.com/Resolyte-official/service-gps/pkg/config"
+	mongodb "github.com/Resolyte-official/service-gps/pkg/db/mongo"
 	"github.com/Resolyte-official/service-gps/pkg/endpoints"
 	grpcClient "github.com/Resolyte-official/service-gps/pkg/grpc"
 	"github.com/Resolyte-official/service-gps/pkg/logging"
@@ -45,6 +46,12 @@ func main() {
 	}
 	defer govClient.Close()
 
+	mongoURI := mongodb.CreateMongoURI(&envConfig.Mongo)
+	mongoService, err := mongodb.NewMongoService(mongoURI)
+	if err != nil {
+		panic(err)
+	}
+
 	var (
 		corsConfig = &transport.CorsOptions{
 			Origins:          envConfig.CorsOrigins,                                                                   // Allow only specified origin
@@ -78,6 +85,36 @@ func main() {
 			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 			defer cancel()
 			_ = srv.Shutdown(ctx)
+		})
+	}
+
+	{
+		// mongo
+		ctx, cancel := context.WithCancel(context.Background())
+		g.Add(func() error {
+			ticker := time.NewTicker(10 * time.Second)
+			defer ticker.Stop()
+			for {
+				select {
+				case <-ticker.C:
+					err := mongoService.Ping(ctx)
+					if err != nil {
+						mainLogger.Warnf("MongoService | status disconnected [%s]", err.Error())
+					} else {
+						mainLogger.Info("MongoService | status healthy")
+					}
+				case <-ctx.Done():
+					return nil
+				}
+			}
+		}, func(err error) {
+			cancel()
+			mainLogger.ErrorNt(err, "MongoService | disconnecting mongo  client")
+			ctx, cancelTimeout := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancelTimeout()
+			if err := mongoService.Disconnect(ctx); err != nil {
+				mainLogger.ErrorNt(err, "MongoService | error disconnecting mongo client")
+			}
 		})
 	}
 

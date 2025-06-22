@@ -14,6 +14,12 @@ GOVERNANCE_GRPC_ADDR=governance:9090
 
 SECRET_KEY=my-secret-key # must be at least 32 bytes
 
+# Mongo configuration
+MONGO_HOST=mongo
+MONGO_PORT=27017
+MONGODB_INITDB_ROOT_USERNAME=admin
+MONGODB_INITDB_ROOT_PASSWORD=mymongopassword
+
 CORS_ORIGINS=http://localhost:5000
 ```
 

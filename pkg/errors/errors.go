@@ -60,4 +60,5 @@ var (
 	ErrMissingRequestID = NewServiceError(http.StatusBadRequest, "MISSING_REQUEST_ID", "Please provide a valid X-Request-ID header.")
 	ErrInvalidRequestID = NewServiceError(http.StatusBadRequest, "INVALID_REQUEST_ID", "X-Request-ID must be a valid UUID.")
 	ErrTripNotFound     = NewServiceError(http.StatusInternalServerError, "TRIP_NOT_FOUND", "The requested trip could not be found.")
+	ErrMongo            = NewServiceError(http.StatusInternalServerError, "MONGO_ERROR", "An unexpected error occurred on the server. Please try again later or contact support if the issue persists.")
 )

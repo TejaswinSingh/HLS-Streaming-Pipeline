@@ -5,6 +5,8 @@ import (
 	"os"
 	"strconv"
 	"strings"
+
+	mongodb "github.com/Resolyte-official/service-gps/pkg/db/mongo"
 )
 
 // Configuration .
@@ -15,11 +17,14 @@ type Configuration struct {
 	SecretKey          []byte
 	CorsOrigins        []string
 	GovernanceGrpcAddr string
+	Mongo              mongodb.MongoConfiguration
 }
 
 const (
 	defaultCORSOrigin = ""
 	defaultHTTPPort   = "12003"
+	defaultMongoHost  = "mongo"
+	defaultMongoPort  = "27017"
 )
 
 // NewEnvironmentConfiguration creates a configuration populated from os environment variables.
@@ -42,6 +47,12 @@ func NewEnvironmentConfiguration() Configuration {
 		SecretKey:          secretKey,
 		CorsOrigins:        parseStringsEnv("CORS_ORIGINS", []string{defaultCORSOrigin}),
 		GovernanceGrpcAddr: requireEnv("GOVERNANCE_GRPC_ADDR"),
+		Mongo: mongodb.MongoConfiguration{
+			Host:     envString("MONGO_HOST", defaultMongoHost),
+			Port:     envString("MONGO_PORT", defaultMongoPort),
+			Username: requireEnv("MONGODB_INITDB_ROOT_USERNAME"),
+			Password: requireEnv("MONGODB_INITDB_ROOT_PASSWORD"),
+		},
 	}
 }
 
