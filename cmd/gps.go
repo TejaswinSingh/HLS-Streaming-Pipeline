@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"sync"
 	"syscall"
 	"time"
 
@@ -17,6 +18,7 @@ import (
 	"github.com/Resolyte-official/service-gps/pkg/logging"
 	"github.com/Resolyte-official/service-gps/pkg/transport"
 	"github.com/Resolyte-official/service-gps/pkg/trip"
+	"github.com/Resolyte-official/service-gps/pkg/utils"
 	"github.com/oklog/oklog/pkg/group"
 	"google.golang.org/grpc/credentials/insecure"
 )
@@ -62,7 +64,8 @@ func main() {
 			AllowCredentials: true,                                                                                    // Allow credentials to be included
 		}
 		dbTripStorage = trip.NewDBTripStorage(mongoService)
-		service       = gps.NewService(&envConfig, mongoService, dbTripStorage)
+		fetchList     = utils.NewFetchList()
+		service       = gps.NewService(&envConfig, mongoService, dbTripStorage, fetchList)
 		eps           = endpoints.NewEndpointSet(service)
 		httpHandler   = transport.NewHTTPHandler(eps, &envConfig, corsConfig, govClient, lw)
 	)
@@ -87,6 +90,38 @@ func main() {
 			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 			defer cancel()
 			_ = srv.Shutdown(ctx)
+		})
+	}
+
+	{
+		// fetch coordinates from gps devices and append them to the trips,
+		// which are stored in mongodb
+		ctx, cancel := context.WithCancel(context.Background())
+		g.Add(func() error {
+			var wg sync.WaitGroup
+
+			ticker := time.NewTicker(5 * time.Second)
+			defer ticker.Stop()
+			for {
+				select {
+				case <-ticker.C:
+					wg.Add(1)
+					go func() {
+						defer wg.Done()
+						if err := fetchList.FetchAndAppendCoordinates(); err != nil {
+							mainLogger.Warnf("fetch coordinates | failed [%s]", err.Error())
+						} else {
+							mainLogger.Info("fetch coordinates | appended successfully")
+						}
+					}()
+				case <-ctx.Done():
+					wg.Wait() // waits for all go routines called above to finish
+					return nil
+				}
+			}
+		}, func(error) {
+			cancel()
+			mainLogger.ErrorNt(err, "fetch coordinates | stopping")
 		})
 	}
 
