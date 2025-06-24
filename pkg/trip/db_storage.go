@@ -15,7 +15,7 @@ const (
 )
 
 type DBTripStorage interface {
-	CreateTrip(ctx context.Context, schoolID, busID, tripID string) error
+	CreateTrip(ctx context.Context, schoolID, busID, gpsID, tripID string) error
 	EndTrip(ctx context.Context, tripID string) error
 	GetTrip(ctx context.Context, tripID string) (*Trip, error)
 	AppendCoordinate(ctx context.Context, tripID string, coord Coordinate) error
@@ -34,7 +34,7 @@ func NewDBTripStorage(mongoSvc *mongodb.MongoService) DBTripStorage {
 	}
 }
 
-func (s *MongoTripStorage) CreateTrip(ctx context.Context, schoolID, busID, tripID string) error {
+func (s *MongoTripStorage) CreateTrip(ctx context.Context, schoolID, busID, gpsID, tripID string) error {
 	coll := s.mongoSvc.GetCollection(DB, Coll)
 	now := time.Now().UTC()
 
@@ -42,6 +42,7 @@ func (s *MongoTripStorage) CreateTrip(ctx context.Context, schoolID, busID, trip
 		ID:          tripID,
 		SchoolID:    schoolID,
 		BusID:       busID,
+		GpsID:       gpsID,
 		StartTime:   now,
 		EndTime:     nil,
 		Coordinates: []Coordinate{},
