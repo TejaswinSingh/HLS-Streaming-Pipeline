@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"time"
 
-	svcErrors "github.com/Resolyte-official/service-governance/pkg/errors"
+	svcErrors "github.com/Resolyte-official/service-gps/pkg/errors"
 	"go.mongodb.org/mongo-driver/v2/mongo"
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
 )
@@ -62,9 +62,58 @@ func (m *MongoService) FindOne(ctx context.Context, coll *mongo.Collection, filt
 	res := coll.FindOne(ctx, filter)
 	if err := res.Err(); err != nil {
 		if errors.Is(err, mongo.ErrNoDocuments) {
-			return nil, err
+			return nil, svcErrors.ErrMongoNoDocs
 		}
 		return nil, svcErrors.ErrMongo.WithInternalErr(err)
+	}
+	return res, nil
+}
+
+func (m *MongoService) InsertOne(ctx context.Context, coll *mongo.Collection, doc any) (*mongo.InsertOneResult, error) {
+	res, err := coll.InsertOne(ctx, doc)
+	if err != nil {
+		return nil, svcErrors.ErrMongo.WithInternalErr(err)
+	}
+	return res, nil
+}
+
+func (m *MongoService) UpdateOne(ctx context.Context, coll *mongo.Collection, filter any, update any) (*mongo.UpdateResult, error) {
+	res, err := coll.UpdateOne(ctx, filter, update)
+	if err != nil {
+		return nil, svcErrors.ErrMongo.WithInternalErr(err)
+	}
+	if res.MatchedCount == 0 {
+		return nil, svcErrors.ErrMongoNoDocs
+	}
+	return res, nil
+}
+
+func (m *MongoService) DeleteOne(ctx context.Context, coll *mongo.Collection, filter any) (*mongo.DeleteResult, error) {
+	res, err := coll.DeleteOne(ctx, filter)
+	if err != nil {
+		return nil, svcErrors.ErrMongo.WithInternalErr(err)
+	}
+	if res.DeletedCount == 0 {
+		return nil, svcErrors.ErrMongoNoDocs
+	}
+	return res, nil
+}
+
+func (m *MongoService) Find(ctx context.Context, coll *mongo.Collection, filter any) (*mongo.Cursor, error) {
+	cursor, err := coll.Find(ctx, filter)
+	if err != nil {
+		return nil, svcErrors.ErrMongo.WithInternalErr(err)
+	}
+	return cursor, nil
+}
+
+func (m *MongoService) DeleteMany(ctx context.Context, coll *mongo.Collection, filter any) (*mongo.DeleteResult, error) {
+	res, err := coll.DeleteMany(ctx, filter)
+	if err != nil {
+		return nil, svcErrors.ErrMongo.WithInternalErr(err)
+	}
+	if res.DeletedCount == 0 {
+		return nil, svcErrors.ErrMongoNoDocs
 	}
 	return res, nil
 }

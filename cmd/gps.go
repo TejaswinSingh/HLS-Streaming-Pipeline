@@ -16,6 +16,7 @@ import (
 	grpcClient "github.com/Resolyte-official/service-gps/pkg/grpc"
 	"github.com/Resolyte-official/service-gps/pkg/logging"
 	"github.com/Resolyte-official/service-gps/pkg/transport"
+	"github.com/Resolyte-official/service-gps/pkg/trip"
 	"github.com/oklog/oklog/pkg/group"
 	"google.golang.org/grpc/credentials/insecure"
 )
@@ -60,9 +61,10 @@ func main() {
 			ExposeHeaders:    []string{"Content-Type", "X-Request-ID"},                                                // Allow any headers to be exposed
 			AllowCredentials: true,                                                                                    // Allow credentials to be included
 		}
-		service     = gps.NewService(&envConfig)
-		eps         = endpoints.NewEndpointSet(service)
-		httpHandler = transport.NewHTTPHandler(eps, &envConfig, corsConfig, govClient, lw)
+		dbTripStorage = trip.NewDBTripStorage(mongoService)
+		service       = gps.NewService(&envConfig, mongoService, dbTripStorage)
+		eps           = endpoints.NewEndpointSet(service)
+		httpHandler   = transport.NewHTTPHandler(eps, &envConfig, corsConfig, govClient, lw)
 	)
 
 	var g group.Group

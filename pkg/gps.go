@@ -5,15 +5,21 @@ import (
 	"net/http"
 
 	"github.com/Resolyte-official/service-gps/pkg/config"
+	mongodb "github.com/Resolyte-official/service-gps/pkg/db/mongo"
+	"github.com/Resolyte-official/service-gps/pkg/trip"
 )
 
 type gpsService struct {
-	envConfig *config.Configuration
+	envConfig     *config.Configuration
+	mongoSvc      *mongodb.MongoService
+	dbTripStorage trip.DBTripStorage
 }
 
-func NewService(envConfig *config.Configuration) Service {
+func NewService(envConfig *config.Configuration, mongoSvc *mongodb.MongoService, dbTripStorage trip.DBTripStorage) Service {
 	return &gpsService{
-		envConfig: envConfig,
+		envConfig:     envConfig,
+		mongoSvc:      mongoSvc,
+		dbTripStorage: dbTripStorage,
 	}
 }
 

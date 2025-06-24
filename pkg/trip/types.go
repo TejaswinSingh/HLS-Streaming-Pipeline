@@ -1,7 +1,6 @@
 package trip
 
 import (
-	"os"
 	"time"
 )
 
@@ -12,14 +11,15 @@ type Coordinate struct {
 }
 
 type Trip struct {
-	// TripID      string       `json:"trip_id"`
-	StartTime   time.Time    `json:"start_time"`
-	EndTime     time.Time    `json:"end_time"`
-	Coordinates []Coordinate `json:"coordinates"`
+	ID       string `bson:"_id" json:"_id"`
+	SchoolID string `bson:"school_id" json:"school_id"`
+	BusID    string `bson:"bus_id" json:"bus_id"`
+	// StoragePath string       `bson:"storage_path" json:"storage_path"`
+	StartTime   time.Time    `bson:"start_time" json:"start_time"`
+	EndTime     *time.Time   `bson:"end_time,omitempty" json:"end_time,omitempty"`
+	Coordinates []Coordinate `bson:"coordinates" json:"coordinates"`
 }
 
 const (
-	RWX_R_R  os.FileMode = 0o744
-	RW_R_R   os.FileMode = 0o644
-	YYYYMMDD string      = "2006-01-02"
+	YYYYMMDD string = "2006-01-02"
 )
