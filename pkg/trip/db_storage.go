@@ -15,7 +15,7 @@ const (
 )
 
 type DBTripStorage interface {
-	CreateTrip(ctx context.Context, schoolID, busID, gpsID, tripID string) error
+	CreateTrip(ctx context.Context, schoolID, vehicleID, gpsID, tripID string) error
 	EndTrip(ctx context.Context, tripID string) error
 	GetTrip(ctx context.Context, tripID string) (*Trip, error)
 	AppendCoordinate(ctx context.Context, tripID string, coord Coordinate) error
@@ -34,14 +34,14 @@ func NewDBTripStorage(mongoSvc *mongodb.MongoService) DBTripStorage {
 	}
 }
 
-func (s *MongoTripStorage) CreateTrip(ctx context.Context, schoolID, busID, gpsID, tripID string) error {
+func (s *MongoTripStorage) CreateTrip(ctx context.Context, schoolID, vehicleID, gpsID, tripID string) error {
 	coll := s.mongoSvc.GetCollection(DB, Coll)
 	now := time.Now().UTC()
 
 	trip := Trip{
 		ID:          tripID,
 		SchoolID:    schoolID,
-		BusID:       busID,
+		VehicleID:   vehicleID,
 		GpsID:       gpsID,
 		StartTime:   now,
 		EndTime:     nil,
@@ -122,7 +122,7 @@ func (s *MongoTripStorage) DeleteTrip(ctx context.Context, tripID string) error 
 	return nil
 }
 
-// filter can include school_id, bus_id, before date, after date, etc.
+// filter can include school_id, vehicleID, before date, after date, etc.
 func (s *MongoTripStorage) DeleteTrips(ctx context.Context, filter bson.M) (int64, error) {
 	coll := s.mongoSvc.GetCollection(DB, Coll)
 
