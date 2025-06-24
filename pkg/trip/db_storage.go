@@ -15,7 +15,7 @@ const (
 )
 
 type DBTripStorage interface {
-	CreateTrip(ctx context.Context, schoolID, vehicleID, gpsID, tripID string) error
+	CreateTrip(ctx context.Context, schoolID string, vehicleID bson.ObjectID, gpsTrackerID string) (any, error)
 	EndTrip(ctx context.Context, tripID string) error
 	GetTrip(ctx context.Context, tripID string) (*Trip, error)
 	AppendCoordinate(ctx context.Context, tripID string, coord Coordinate) error
@@ -34,26 +34,25 @@ func NewDBTripStorage(mongoSvc *mongodb.MongoService) DBTripStorage {
 	}
 }
 
-func (s *MongoTripStorage) CreateTrip(ctx context.Context, schoolID, vehicleID, gpsID, tripID string) error {
+func (s *MongoTripStorage) CreateTrip(ctx context.Context, schoolID string, vehicleID bson.ObjectID, gpsTrackerID string) (any, error) {
 	coll := s.mongoSvc.GetCollection(DB, Coll)
 	now := time.Now().UTC()
 
 	trip := Trip{
-		ID:          tripID,
-		SchoolID:    schoolID,
-		VehicleID:   vehicleID,
-		GpsID:       gpsID,
-		StartTime:   now,
-		EndTime:     nil,
-		Coordinates: []Coordinate{},
+		SchoolID:     schoolID,
+		VehicleID:    vehicleID,
+		GpsTrackerID: gpsTrackerID,
+		StartTime:    now,
+		EndTime:      nil,
+		Coordinates:  []Coordinate{},
 	}
 
-	_, err := s.mongoSvc.InsertOne(ctx, coll, trip)
+	res, err := s.mongoSvc.InsertOne(ctx, coll, trip)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	return nil
+	return res.InsertedID, nil
 }
 
 func (s *MongoTripStorage) EndTrip(ctx context.Context, tripID string) error {
