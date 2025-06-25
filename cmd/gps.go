@@ -16,6 +16,7 @@ import (
 	"github.com/Resolyte-official/service-gps/pkg/endpoints"
 	grpcClient "github.com/Resolyte-official/service-gps/pkg/grpc"
 	"github.com/Resolyte-official/service-gps/pkg/logging"
+	storage "github.com/Resolyte-official/service-gps/pkg/storage/s3"
 	"github.com/Resolyte-official/service-gps/pkg/transport"
 	"github.com/Resolyte-official/service-gps/pkg/trip"
 	"github.com/Resolyte-official/service-gps/pkg/utils"
@@ -55,6 +56,11 @@ func main() {
 		panic(err)
 	}
 
+	s3svc, err := storage.NewS3Service(context.Background())
+	if err != nil {
+		panic(err)
+	}
+
 	var (
 		corsConfig = &transport.CorsOptions{
 			Origins:          envConfig.CorsOrigins,                                                                   // Allow only specified origin
@@ -63,7 +69,7 @@ func main() {
 			ExposeHeaders:    []string{"Content-Type", "X-Request-ID"},                                                // Allow any headers to be exposed
 			AllowCredentials: true,                                                                                    // Allow credentials to be included
 		}
-		dbTripStorage = trip.NewDBTripStorage(mongoService)
+		dbTripStorage = trip.NewDBTripStorage(mongoService, s3svc)
 		fetchList     = utils.NewFetchList(lw, dbTripStorage)
 		service       = gps.NewService(&envConfig, mongoService, dbTripStorage, fetchList)
 		eps           = endpoints.NewEndpointSet(service)

@@ -20,6 +20,11 @@ MONGO_PORT=27017
 MONGODB_INITDB_ROOT_USERNAME=admin
 MONGODB_INITDB_ROOT_PASSWORD=mymongopassword
 
+# AWS
+AWS_ACCESS_KEY_ID=my-access-key-id
+AWS_SECRET_ACCESS_KEY=my-secret-access-key
+AWS_REGION=aws-region
+
 CORS_ORIGINS=http://localhost:5000
 ```
 
