@@ -11,6 +11,8 @@ import (
 	mongodb "github.com/Resolyte-official/service-gps/pkg/db/mongo"
 	svcErrors "github.com/Resolyte-official/service-gps/pkg/errors"
 	storage "github.com/Resolyte-official/service-gps/pkg/storage/s3"
+	uuidUtils "github.com/Resolyte-official/service-gps/pkg/utils/uuid"
+	"github.com/google/uuid"
 	"go.mongodb.org/mongo-driver/v2/bson"
 )
 
@@ -52,7 +54,14 @@ func (s *MongoTripStorage) CreateTrip(ctx context.Context, schoolID string, vehi
 	coll := s.mongoSvc.GetCollection(DB, Coll)
 	now := time.Now().UTC()
 
+	id := uuidUtils.NewUUIDv4()
+	bid := bson.Binary{
+		Subtype: 0x04,
+		Data:    id[:],
+	}
+
 	trip := Trip{
+		ID:           bid,
 		SchoolID:     schoolID,
 		VehicleID:    vehicleID,
 		GpsTrackerID: gpsTrackerID,
@@ -85,15 +94,21 @@ func (s *MongoTripStorage) EndTrip(ctx context.Context, tripID string) error {
 
 		buf, err := json.Marshal(t)
 		if err != nil {
-			// fmt.Printf("s3 upload failed: marshal trip [%s] to JSON %s", tripID, err)
+			fmt.Printf("s3 upload failed: marshal trip [%s] to JSON %s\n", tripID, err)
+			return
+		}
+
+		uuidVal, err := uuid.FromBytes(trip.ID.Data)
+		if err != nil {
+			fmt.Printf("s3 upload failed: extract uuid from tripID %s\n", err)
 			return
 		}
 
 		// make path and upload to S3
-		path := s.MakeTripPath(now, trip.SchoolID, trip.VehicleID.Hex(), trip.ID.Hex())
+		path := s.MakeTripPath(now, trip.SchoolID, trip.VehicleID.Hex(), uuidVal.String())
 		err = s.s3svc.UploadFile(ctx, S3_BUCKET_NAME, path, bytes.NewReader(buf))
 		if err != nil {
-			// mainLogger.Warnf("s3 upload failed: upload trip [%s] to s3 %s", tripID, err)
+			fmt.Printf("s3 upload failed: upload trip [%s] to s3 %s\n", tripID, err)
 			return
 		}
 
@@ -110,7 +125,17 @@ func (s *MongoTripStorage) EndTrip(ctx context.Context, tripID string) error {
 func (s *MongoTripStorage) GetTrip(ctx context.Context, tripID string) (*Trip, error) {
 	coll := s.mongoSvc.GetCollection(DB, Coll)
 
-	filter := bson.M{"_id": tripID}
+	id, err := uuid.Parse(tripID)
+	if err != nil {
+		return nil, svcErrors.ErrBadRequest.WithInternalErr(err)
+	}
+
+	filter := bson.M{
+		"_id": bson.Binary{
+			Subtype: 0x04,
+			Data:    id[:],
+		},
+	}
 	res, err := s.mongoSvc.FindOne(ctx, coll, filter)
 	if err != nil {
 		return nil, err
@@ -127,14 +152,24 @@ func (s *MongoTripStorage) GetTrip(ctx context.Context, tripID string) (*Trip, e
 func (s *MongoTripStorage) AppendCoordinate(ctx context.Context, tripID string, coord Coordinate) error {
 	coll := s.mongoSvc.GetCollection(DB, Coll)
 
-	filter := bson.M{"_id": tripID}
+	id, err := uuid.Parse(tripID)
+	if err != nil {
+		return svcErrors.ErrBadRequest.WithInternalErr(err)
+	}
+
+	filter := bson.M{
+		"_id": bson.Binary{
+			Subtype: 0x04,
+			Data:    id[:],
+		},
+	}
 	update := bson.M{
 		"$push": bson.M{
 			"coordinates": coord,
 		},
 	}
 
-	_, err := s.mongoSvc.UpdateOne(ctx, coll, filter, update)
+	_, err = s.mongoSvc.UpdateOne(ctx, coll, filter, update)
 	if err != nil {
 		return err
 	}
@@ -145,9 +180,19 @@ func (s *MongoTripStorage) AppendCoordinate(ctx context.Context, tripID string, 
 func (s *MongoTripStorage) DeleteTrip(ctx context.Context, tripID string) error {
 	coll := s.mongoSvc.GetCollection(DB, Coll)
 
-	filter := bson.M{"_id": tripID}
+	id, err := uuid.Parse(tripID)
+	if err != nil {
+		return svcErrors.ErrBadRequest.WithInternalErr(err)
+	}
 
-	_, err := s.mongoSvc.DeleteOne(ctx, coll, filter)
+	filter := bson.M{
+		"_id": bson.Binary{
+			Subtype: 0x04,
+			Data:    id[:],
+		},
+	}
+
+	_, err = s.mongoSvc.DeleteOne(ctx, coll, filter)
 	if err != nil {
 		return err
 	}

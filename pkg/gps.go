@@ -10,6 +10,7 @@ import (
 	svcErrors "github.com/Resolyte-official/service-gps/pkg/errors"
 	"github.com/Resolyte-official/service-gps/pkg/trip"
 	"github.com/Resolyte-official/service-gps/pkg/utils"
+	"github.com/google/uuid"
 	"go.mongodb.org/mongo-driver/v2/bson"
 )
 
@@ -59,16 +60,22 @@ func (s *gpsService) StartTrip(ctx context.Context, gpsTrackerID string) (string
 	}
 
 	// create new trip in mongodb
-	id, err := s.dbTripStorage.CreateTrip(ctx, vcl.SchoolID, vcl.ID, gpsTrackerID)
+	tid, err := s.dbTripStorage.CreateTrip(ctx, vcl.SchoolID, vcl.ID, gpsTrackerID)
 	if err != nil {
 		return fail(err)
 	}
-	oid, ok := id.(bson.ObjectID)
+
+	// convert binary bytes to uuid
+	bid, ok := tid.(bson.Binary)
 	if !ok {
 		return fail(svcErrors.ErrInternalServer)
 	}
+	id, err := uuid.FromBytes(bid.Data)
+	if err != nil {
+		return fail(svcErrors.ErrInternalServer.WithInternalErr(err))
+	}
 
-	tripID := oid.Hex()
+	tripID := id.String()
 
 	// add device & trip to fetch-list, now its coordinates will be fetched
 	// continuously and stored in the trip, until the trip ends
@@ -88,7 +95,7 @@ func (s *gpsService) EndTrip(ctx context.Context, gpsTrackerID string) (int, err
 	// remove trip (associated with the given gps tracker) from fetchlist
 	dt, ok := s.fetchList.Remove(gpsTrackerID)
 	if !ok {
-		return fail(svcErrors.ErrInternalServer.WithInternalErr(errors.New("no active trip was found for that gps tracker")))
+		return fail(svcErrors.ErrTripNotFound.WithInternalErr(errors.New("no active trip was found for that gps tracker")))
 	}
 
 	// end trip stored in mongo

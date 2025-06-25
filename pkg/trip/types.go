@@ -13,7 +13,7 @@ type Coordinate struct {
 }
 
 type Trip struct {
-	ID           bson.ObjectID `bson:"_id" json:"_id"`
+	ID           bson.Binary   `bson:"_id" json:"_id"`
 	SchoolID     string        `bson:"school_id" json:"school_id"`
 	VehicleID    bson.ObjectID `bson:"vehicle_id" json:"vehicle_id"`
 	GpsTrackerID string        `bson:"gps_tracker_id" json:"gps_tracker_id"`

@@ -92,6 +92,7 @@ func (fl *FetchList) FetchAndAppendCoordinates() {
 			defer cancel()
 			if err := fl.dbTripStorage.AppendCoordinate(ctx, dt.TripID, *coord); err != nil {
 				logger.Warnf("failed to append coordinates for device [%s] trip [%s] | err: %s", dt.GpsTrackerID, dt.TripID, err)
+				return
 			}
 
 			logger.Infof("coordinates appended for device [%s] trip [%s]", dt.GpsTrackerID, dt.TripID)
@@ -101,7 +102,7 @@ func (fl *FetchList) FetchAndAppendCoordinates() {
 }
 
 func fetchCoordinates(gps_id string) (*trip.Coordinate, error) {
-	url := fmt.Sprintf("http://localhost:8080/get-location?gps_id=%s", gps_id)
+	url := fmt.Sprintf("http://host.docker.internal:8080/get-location?gps_id=%s", gps_id)
 
 	resp, err := http.Get(url)
 	if err != nil {

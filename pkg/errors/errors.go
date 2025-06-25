@@ -59,7 +59,7 @@ var (
 	// others
 	ErrMissingRequestID = NewServiceError(http.StatusBadRequest, "MISSING_REQUEST_ID", "Please provide a valid X-Request-ID header.")
 	ErrInvalidRequestID = NewServiceError(http.StatusBadRequest, "INVALID_REQUEST_ID", "X-Request-ID must be a valid UUID.")
-	ErrTripNotFound     = NewServiceError(http.StatusInternalServerError, "TRIP_NOT_FOUND", "The requested trip could not be found.")
+	ErrTripNotFound     = NewServiceError(http.StatusNotFound, "TRIP_NOT_FOUND", "The requested trip was not found.")
 	ErrMongo            = NewServiceError(http.StatusInternalServerError, "MONGO_ERROR", "An unexpected error occurred on the server. Please try again later or contact support if the issue persists.")
 	ErrMongoNoDocs      = NewServiceError(http.StatusNotFound, "MONGO_DOC_NOT_FOUND", "The requested document does not exist in mongo.")
 )
