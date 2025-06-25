@@ -26,6 +26,20 @@ func NewHTTPHandler(ep endpoints.Set, envConfig *config.Configuration, corsConfi
 		httptransport.ServerErrorEncoder(encodeError),
 	))
 
+	m.Handle("POST /gps/start-trip", httptransport.NewServer(
+		ep.StartTripEndpoint,
+		decodeHTTPStartTripRequest,
+		encodeResponse,
+		httptransport.ServerErrorEncoder(encodeError),
+	))
+
+	m.Handle("POST /gps/end-trip", httptransport.NewServer(
+		ep.EndTripEndpoint,
+		decodeHTTPEndTripRequest,
+		encodeResponse,
+		httptransport.ServerErrorEncoder(encodeError),
+	))
+
 	logger := logging.NewContextLogger(lw, "HttpHandler")
 
 	handler := AuthMiddleware(govClient)(m)
@@ -37,6 +51,21 @@ func NewHTTPHandler(ep endpoints.Set, envConfig *config.Configuration, corsConfi
 
 func decodeHTTPServiceStatusRequest(_ context.Context, _ *http.Request) (any, error) {
 	return endpoints.ServiceStatusRequest{}, nil
+}
+func decodeHTTPStartTripRequest(_ context.Context, r *http.Request) (any, error) {
+	gpsID := r.URL.Query().Get("gps_tracker_id")
+	if gpsID == "" {
+		return nil, svcErrors.ErrBadRequest
+	}
+	return endpoints.StartTripRequest{GpsTrackerID: gpsID}, nil
+}
+
+func decodeHTTPEndTripRequest(_ context.Context, r *http.Request) (any, error) {
+	gpsID := r.URL.Query().Get("gps_tracker_id")
+	if gpsID == "" {
+		return nil, svcErrors.ErrBadRequest
+	}
+	return endpoints.EndTripRequest{GpsTrackerID: gpsID}, nil
 }
 
 func encodeResponse(ctx context.Context, w http.ResponseWriter, response any) error {

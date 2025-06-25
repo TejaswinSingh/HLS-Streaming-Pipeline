@@ -10,11 +10,15 @@ import (
 type Set struct {
 	// http endpoints
 	ServiceStatusEndpoint endpoint.Endpoint
+	StartTripEndpoint     endpoint.Endpoint
+	EndTripEndpoint       endpoint.Endpoint
 }
 
 func NewEndpointSet(svc gps.Service) Set {
 	return Set{
 		ServiceStatusEndpoint: MakeServiceStatusEndpoint(svc),
+		StartTripEndpoint:     MakeStartTripEndpoint(svc),
+		EndTripEndpoint:       MakeEndTripEndpoint(svc),
 	}
 }
 
@@ -26,5 +30,30 @@ func MakeServiceStatusEndpoint(svc gps.Service) endpoint.Endpoint {
 			return nil, err
 		}
 		return ServiceStatusResponse{Status: status}, nil
+	}
+}
+
+func MakeStartTripEndpoint(svc gps.Service) endpoint.Endpoint {
+	return func(ctx context.Context, request any) (any, error) {
+		r := request.(StartTripRequest)
+		tripID, status, err := svc.StartTrip(ctx, r.GpsTrackerID)
+		if err != nil {
+			return nil, err
+		}
+		return StartTripResponse{
+			TripID: tripID,
+			Status: status,
+		}, nil
+	}
+}
+
+func MakeEndTripEndpoint(svc gps.Service) endpoint.Endpoint {
+	return func(ctx context.Context, request any) (any, error) {
+		r := request.(EndTripRequest)
+		status, err := svc.EndTrip(ctx, r.GpsTrackerID)
+		if err != nil {
+			return nil, err
+		}
+		return EndTripResponse{Status: status}, nil
 	}
 }

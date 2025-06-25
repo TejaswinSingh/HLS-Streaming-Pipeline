@@ -115,36 +115,42 @@ func AuthMiddleware(govClient grpcClient.GovernanceClient) func(http.Handler) ht
 			// custom response writer used for propagating info b/w middlewares
 			rw, _ := w.(*ResponseWriter)
 
-			cookie, err := r.Cookie(string(AccessToken))
-			if err != nil || cookie.Valid() != nil || cookie.Value == "" {
-				encodeError(r.Context(), svcErrors.ErrUnauthorized, w)
-				return
-			}
+			switch r.URL.Path {
+			case "/gps/healthz", "/gps/start-trip", "/gps/end-trip":
+				// unprotected endpoints
+			default:
 
-			// grpc request to governance service for verifying token
-			resp, err := govClient.Authorize(
-				r.Context(),
-				cookie.Value, // token
-				"gps",        // obj
-				"view",       // act
-			)
-			if err != nil {
-				encodeError(r.Context(), svcErrors.ErrInternalServer.WithInternalErr(err), w)
-				return
-			}
-			if claims := resp.GetClaims(); claims != nil && uuid.Validate(claims.Sub) == nil {
-				rw.UserID = claims.Sub
-			}
-			if !resp.Eft {
-				switch resp.Status {
-				case http.StatusUnauthorized:
+				cookie, err := r.Cookie(string(AccessToken))
+				if err != nil || cookie.Valid() != nil || cookie.Value == "" {
 					encodeError(r.Context(), svcErrors.ErrUnauthorized, w)
-				case http.StatusForbidden:
-					encodeError(r.Context(), svcErrors.ErrAccessDenied, w)
-				default:
-					encodeError(r.Context(), svcErrors.ErrInternalServer, w)
+					return
 				}
-				return
+
+				// grpc request to governance service for verifying token
+				resp, err := govClient.Authorize(
+					r.Context(),
+					cookie.Value, // token
+					"gps",        // obj
+					"view",       // act
+				)
+				if err != nil {
+					encodeError(r.Context(), svcErrors.ErrInternalServer.WithInternalErr(err), w)
+					return
+				}
+				if claims := resp.GetClaims(); claims != nil && uuid.Validate(claims.Sub) == nil {
+					rw.UserID = claims.Sub
+				}
+				if !resp.Eft {
+					switch resp.Status {
+					case http.StatusUnauthorized:
+						encodeError(r.Context(), svcErrors.ErrUnauthorized, w)
+					case http.StatusForbidden:
+						encodeError(r.Context(), svcErrors.ErrAccessDenied, w)
+					default:
+						encodeError(r.Context(), svcErrors.ErrInternalServer, w)
+					}
+					return
+				}
 			}
 
 			next.ServeHTTP(w, r)
