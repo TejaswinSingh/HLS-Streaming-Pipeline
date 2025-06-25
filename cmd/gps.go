@@ -64,7 +64,7 @@ func main() {
 			AllowCredentials: true,                                                                                    // Allow credentials to be included
 		}
 		dbTripStorage = trip.NewDBTripStorage(mongoService)
-		fetchList     = utils.NewFetchList()
+		fetchList     = utils.NewFetchList(lw, dbTripStorage)
 		service       = gps.NewService(&envConfig, mongoService, dbTripStorage, fetchList)
 		eps           = endpoints.NewEndpointSet(service)
 		httpHandler   = transport.NewHTTPHandler(eps, &envConfig, corsConfig, govClient, lw)
@@ -108,11 +108,7 @@ func main() {
 					wg.Add(1)
 					go func() {
 						defer wg.Done()
-						if err := fetchList.FetchAndAppendCoordinates(); err != nil {
-							mainLogger.Warnf("fetch coordinates | failed [%s]", err.Error())
-						} else {
-							mainLogger.Info("fetch coordinates | appended successfully")
-						}
+						fetchList.FetchAndAppendCoordinates()
 					}()
 				case <-ctx.Done():
 					wg.Wait() // waits for all go routines called above to finish
