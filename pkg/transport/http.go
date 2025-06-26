@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/Resolyte-official/service-gps/pkg/config"
 	"github.com/Resolyte-official/service-gps/pkg/endpoints"
@@ -15,6 +16,10 @@ import (
 	"github.com/Resolyte-official/service-gps/pkg/metrics"
 	httptransport "github.com/go-kit/kit/transport/http"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+)
+
+const (
+	YYYYMMDD = "2006-01-02"
 )
 
 func NewHTTPHandler(ep endpoints.Set, envConfig *config.Configuration, corsConfig *CorsOptions, govClient grpcClient.GovernanceClient, metrics *metrics.Metrics, lw logging.LogWriter) http.Handler {
@@ -80,13 +85,27 @@ func decodeHTTPEndTripRequest(_ context.Context, r *http.Request) (any, error) {
 }
 
 func decodeHTTPGetVehicleTripsRequest(_ context.Context, r *http.Request) (any, error) {
-	var req endpoints.GetVehicleTripsRequest
-	decoder := json.NewDecoder(r.Body)
-	decoder.DisallowUnknownFields()
-	if err := decoder.Decode(&req); err != nil {
+	schID := r.URL.Query().Get("school_id")
+	vclID := r.URL.Query().Get("vehicle_id")
+	afterStr := r.URL.Query().Get("after")
+	beforeStr := r.URL.Query().Get("before")
+	if schID == "" || vclID == "" || afterStr == "" || beforeStr == "" {
 		return nil, svcErrors.ErrBadRequest
 	}
-	return req, nil
+	after, err := time.Parse(YYYYMMDD, afterStr)
+	if err != nil {
+		return nil, svcErrors.ErrBadRequest
+	}
+	before, err := time.Parse(YYYYMMDD, beforeStr)
+	if err != nil {
+		return nil, svcErrors.ErrBadRequest
+	}
+	return endpoints.GetVehicleTripsRequest{
+		SchoolID:  schID,
+		VehicleID: vclID,
+		After:     after,
+		Before:    before,
+	}, nil
 }
 
 func encodeResponse(ctx context.Context, w http.ResponseWriter, response any) error {

@@ -1,8 +1,9 @@
 package endpoints
 
 import (
+	"time"
+
 	"github.com/Resolyte-official/service-gps/pkg/trip"
-	"github.com/Resolyte-official/service-gps/pkg/utils/types"
 )
 
 type ServiceStatusRequest struct{}
@@ -32,10 +33,10 @@ type EndTripResponse struct {
 func (r EndTripResponse) GetStatus() int { return r.Status }
 
 type GetVehicleTripsRequest struct {
-	SchoolID  string     `json:"school_id"`
-	VehicleID string     `json:"vehicle_id"`
-	After     types.Date `json:"after"`
-	Before    types.Date `json:"before"`
+	SchoolID  string    `json:"school_id"`
+	VehicleID string    `json:"vehicle_id"`
+	After     time.Time `json:"after"`
+	Before    time.Time `json:"before"`
 }
 type GetVehicleTripsResponse struct {
 	Trips  []*trip.Trip `json:"trips"`

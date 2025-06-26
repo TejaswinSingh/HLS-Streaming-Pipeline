@@ -4,13 +4,13 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"time"
 
 	"github.com/Resolyte-official/service-gps/pkg/config"
 	mongodb "github.com/Resolyte-official/service-gps/pkg/db/mongo"
 	svcErrors "github.com/Resolyte-official/service-gps/pkg/errors"
 	"github.com/Resolyte-official/service-gps/pkg/trip"
 	"github.com/Resolyte-official/service-gps/pkg/utils"
-	"github.com/Resolyte-official/service-gps/pkg/utils/types"
 	"github.com/google/uuid"
 	"go.mongodb.org/mongo-driver/v2/bson"
 )
@@ -107,7 +107,7 @@ func (s *gpsService) EndTrip(ctx context.Context, gpsTrackerID string) (int, err
 	return http.StatusOK, nil
 }
 
-func (s *gpsService) GetVehicleTrips(ctx context.Context, schoolID, vehicleID string, after, before types.Date) ([]*trip.Trip, int, error) {
+func (s *gpsService) GetVehicleTrips(ctx context.Context, schoolID, vehicleID string, after, before time.Time) ([]*trip.Trip, int, error) {
 	fail := func(err error) ([]*trip.Trip, int, error) {
 		return nil, 0, err
 	}
@@ -134,9 +134,7 @@ func (s *gpsService) GetVehicleTrips(ctx context.Context, schoolID, vehicleID st
 	}
 
 	// fetch trips b/w after and before
-	afterTime := after.Time()
-	beforeTime := before.Time()
-	trips, err := s.dbTripStorage.GetVehicleTripsFromS3(ctx, schoolID, vehicleID, &afterTime, &beforeTime)
+	trips, err := s.dbTripStorage.GetVehicleTripsFromS3(ctx, schoolID, vehicleID, &after, &before)
 	if err != nil {
 		return fail(err)
 	}
