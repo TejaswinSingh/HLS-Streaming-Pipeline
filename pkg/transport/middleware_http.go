@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 
@@ -13,6 +14,7 @@ import (
 	svcErrors "github.com/Resolyte-official/service-gps/pkg/errors"
 	grpcClient "github.com/Resolyte-official/service-gps/pkg/grpc"
 	"github.com/Resolyte-official/service-gps/pkg/logging"
+	"github.com/Resolyte-official/service-gps/pkg/metrics"
 	"github.com/google/uuid"
 )
 
@@ -57,7 +59,7 @@ func CorsMiddleware(corsConfig *CorsOptions) func(http.Handler) http.Handler {
 	}
 }
 
-func TracingAndLoggingMiddleware(logger logging.Logger, envConfig *config.Configuration) func(http.Handler) http.Handler {
+func TracingLoggingMetricsMiddleware(logger logging.Logger, envConfig *config.Configuration, metrics *metrics.Metrics) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			start := time.Now().UTC()
@@ -75,10 +77,20 @@ func TracingAndLoggingMiddleware(logger logging.Logger, envConfig *config.Config
 				logE.UserID = rw.UserID
 				logE.Duration = time.Since(start).String()
 				logE.Log(logger)
+
+				// metrics
+				labels := []string{
+					"transport", logE.Transport,
+					"path", logE.Path,
+					"rpc", "",
+					"status", strconv.Itoa(logE.Status),
+				}
+				metrics.RequestLatency.With(labels...).Observe(time.Since(start).Seconds())
+				metrics.RequestCount.With(labels...).Add(1)
 			}()
 
-			// don't trace preflight request
-			if r.Method != http.MethodOptions {
+			// don't trace preflight request and request to /metrics endpoint
+			if r.Method != http.MethodOptions && r.URL.Path != "/metrics" {
 
 				// requestID is required
 				reqID := r.Header.Get("X-Request-ID")
@@ -116,7 +128,7 @@ func AuthMiddleware(govClient grpcClient.GovernanceClient) func(http.Handler) ht
 			rw, _ := w.(*ResponseWriter)
 
 			switch r.URL.Path {
-			case "/gps/healthz", "/gps/start-trip", "/gps/end-trip":
+			case "/gps/healthz", "/gps/start-trip", "/gps/end-trip", "/metrics":
 				// unprotected endpoints
 			default:
 

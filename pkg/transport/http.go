@@ -12,11 +12,15 @@ import (
 	svcErrors "github.com/Resolyte-official/service-gps/pkg/errors"
 	grpcClient "github.com/Resolyte-official/service-gps/pkg/grpc"
 	"github.com/Resolyte-official/service-gps/pkg/logging"
+	"github.com/Resolyte-official/service-gps/pkg/metrics"
 	httptransport "github.com/go-kit/kit/transport/http"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
-func NewHTTPHandler(ep endpoints.Set, envConfig *config.Configuration, corsConfig *CorsOptions, govClient grpcClient.GovernanceClient, lw logging.LogWriter) http.Handler {
+func NewHTTPHandler(ep endpoints.Set, envConfig *config.Configuration, corsConfig *CorsOptions, govClient grpcClient.GovernanceClient, metrics *metrics.Metrics, lw logging.LogWriter) http.Handler {
 	m := http.NewServeMux()
+
+	m.Handle("/metrics", promhttp.Handler())
 
 	m.Handle("GET /gps/healthz", httptransport.NewServer(
 		ep.ServiceStatusEndpoint,
@@ -51,7 +55,7 @@ func NewHTTPHandler(ep endpoints.Set, envConfig *config.Configuration, corsConfi
 
 	handler := AuthMiddleware(govClient)(m)
 	handler = CorsMiddleware(corsConfig)(handler)
-	handler = TracingAndLoggingMiddleware(logger, envConfig)(handler)
+	handler = TracingLoggingMetricsMiddleware(logger, envConfig, metrics)(handler)
 
 	return handler
 }

@@ -16,6 +16,7 @@ import (
 	"github.com/Resolyte-official/service-gps/pkg/endpoints"
 	grpcClient "github.com/Resolyte-official/service-gps/pkg/grpc"
 	"github.com/Resolyte-official/service-gps/pkg/logging"
+	"github.com/Resolyte-official/service-gps/pkg/metrics"
 	storage "github.com/Resolyte-official/service-gps/pkg/storage/s3"
 	"github.com/Resolyte-official/service-gps/pkg/transport"
 	"github.com/Resolyte-official/service-gps/pkg/trip"
@@ -71,9 +72,10 @@ func main() {
 		}
 		dbTripStorage = trip.NewDBTripStorage(mongoService, s3svc)
 		fetchList     = utils.NewFetchList(lw, dbTripStorage)
+		metrics       = metrics.NewGPSMetrics()
 		service       = gps.NewService(&envConfig, mongoService, dbTripStorage, fetchList)
 		eps           = endpoints.NewEndpointSet(service)
-		httpHandler   = transport.NewHTTPHandler(eps, &envConfig, corsConfig, govClient, lw)
+		httpHandler   = transport.NewHTTPHandler(eps, &envConfig, corsConfig, govClient, metrics, lw)
 	)
 
 	var g group.Group
