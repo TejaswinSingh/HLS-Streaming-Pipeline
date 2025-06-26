@@ -14,6 +14,7 @@ import (
 type StorageService interface {
 	UploadFile(ctx context.Context, bucket, key string, body io.Reader) error
 	DownloadFile(ctx context.Context, bucket, key string) ([]byte, error)
+	ListFiles(ctx context.Context, bucket, prefix string) ([]string, error)
 }
 
 type S3Service struct {
@@ -67,4 +68,25 @@ func (s *S3Service) DownloadFile(ctx context.Context, bucket, key string) ([]byt
 	}
 
 	return data, nil
+}
+
+func (s *S3Service) ListFiles(ctx context.Context, bucket, prefix string) ([]string, error) {
+	var keys []string
+
+	paginator := s3.NewListObjectsV2Paginator(s.client, &s3.ListObjectsV2Input{
+		Bucket: aws.String(bucket),
+		Prefix: aws.String(prefix),
+	})
+
+	for paginator.HasMorePages() {
+		page, err := paginator.NextPage(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("error listing s3 objects: %w", err)
+		}
+		for _, obj := range page.Contents {
+			keys = append(keys, *obj.Key)
+		}
+	}
+
+	return keys, nil
 }

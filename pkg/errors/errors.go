@@ -55,6 +55,7 @@ var (
 	ErrInternalServer = NewServiceError(http.StatusInternalServerError, "INTERNAL_SERVER_ERROR", "An unexpected error occurred on the server. Please try again later or contact support if the issue persists.")
 	ErrAccessDenied   = NewServiceError(http.StatusForbidden, "ACCESS_DENIED", "You do not have permission to perform this action.")
 	ErrUnauthorized   = NewServiceError(http.StatusUnauthorized, "UNAUTHORIZED_REQUEST", "Unauthorized request. Please provide a valid Authorization token/cookie.")
+	ErrNotFound       = NewServiceError(http.StatusNotFound, "RESOURCE_NOT_FOUND", "The requested resource was not found.")
 
 	// others
 	ErrMissingRequestID = NewServiceError(http.StatusBadRequest, "MISSING_REQUEST_ID", "Please provide a valid X-Request-ID header.")

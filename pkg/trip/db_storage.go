@@ -6,6 +6,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"path/filepath"
+	"strings"
+	"sync"
 	"time"
 
 	mongodb "github.com/Resolyte-official/service-gps/pkg/db/mongo"
@@ -20,6 +22,7 @@ const (
 	DB             = "gps"
 	Coll           = "trips"
 	S3_BUCKET_NAME = "resolyte-s3"
+	BASE_PATH      = "gps/data"
 )
 
 type DBTripStorage interface {
@@ -28,8 +31,7 @@ type DBTripStorage interface {
 	GetTrip(ctx context.Context, tripID string) (*Trip, error)
 	AppendCoordinate(ctx context.Context, tripID string, coord Coordinate) error
 	DeleteTrip(ctx context.Context, tripID string) error
-	DeleteTrips(ctx context.Context, filter bson.M) (int64, error)
-	GetTrips(ctx context.Context, filter bson.M) ([]*Trip, error)
+	GetVehicleTripsFromS3(ctx context.Context, schoolID string, vehicleID string, after, before *time.Time) ([]*Trip, error)
 }
 
 type MongoTripStorage struct {
@@ -45,9 +47,8 @@ func NewDBTripStorage(mongoSvc *mongodb.MongoService, s3svc storage.StorageServi
 }
 
 func (s *MongoTripStorage) MakeTripPath(tm time.Time, schoolID, vehicleID, tripID string) string {
-	basePath := "gps/data"
 	date := tm.Format(YYYYMMDD)
-	return filepath.Join(basePath, schoolID, vehicleID, date, fmt.Sprintf("%s.json", tripID))
+	return filepath.Join(BASE_PATH, schoolID, vehicleID, date, fmt.Sprintf("%s.json", tripID))
 }
 
 func (s *MongoTripStorage) CreateTrip(ctx context.Context, schoolID string, vehicleID bson.ObjectID, gpsTrackerID string) (any, error) {
@@ -200,39 +201,95 @@ func (s *MongoTripStorage) DeleteTrip(ctx context.Context, tripID string) error 
 	return nil
 }
 
-// filter can include school_id, vehicleID, before date, after date, etc.
-func (s *MongoTripStorage) DeleteTrips(ctx context.Context, filter bson.M) (int64, error) {
-	coll := s.mongoSvc.GetCollection(DB, Coll)
+func (s *MongoTripStorage) GetVehicleTripsFromS3(
+	ctx context.Context,
+	schoolID string,
+	vehicleID string,
+	after, before *time.Time, // optional: nil means no time filter
+) ([]*Trip, error) {
+	prefix := filepath.Join(BASE_PATH, schoolID, vehicleID) + "/"
+	const maxConcurrency = 10
 
-	res, err := s.mongoSvc.DeleteMany(ctx, coll, filter)
+	objectKeys, err := s.s3svc.ListFiles(ctx, S3_BUCKET_NAME, prefix)
 	if err != nil {
-		return 0, err
+		return nil, svcErrors.ErrInternalServer.WithInternalErr(err)
 	}
 
-	return res.DeletedCount, nil
-}
-
-func (s *MongoTripStorage) GetTrips(ctx context.Context, filter bson.M) ([]*Trip, error) {
-	coll := s.mongoSvc.GetCollection(DB, Coll)
-
-	cursor, err := s.mongoSvc.Find(ctx, coll, filter)
-	if err != nil {
-		return nil, err
-	}
-	defer cursor.Close(ctx)
-
-	var trips []*Trip
-	for cursor.Next(ctx) {
-		var trip Trip
-		if err := cursor.Decode(&trip); err != nil {
-			return nil, svcErrors.ErrInternalServer.WithInternalErr(err)
+	// Filter keys by date, if before/after filters are set
+	filteredKeys := make([]string, 0, len(objectKeys))
+	for _, key := range objectKeys {
+		dateStr := extractDateFromKey(key)
+		if dateStr == "" {
+			continue
 		}
-		trips = append(trips, &trip)
+		fileDate, err := time.Parse(YYYYMMDD, dateStr)
+		if err != nil {
+			continue
+		}
+		if after != nil && !fileDate.After(*after) {
+			continue
+		}
+		if before != nil && !fileDate.Before(*before) {
+			continue
+		}
+		filteredKeys = append(filteredKeys, key)
 	}
 
-	if err := cursor.Err(); err != nil {
-		return nil, svcErrors.ErrMongo.WithInternalErr(err)
+	type tripResult struct {
+		trip *Trip
+		err  error
+	}
+
+	// Download files in parallel
+	results := make(chan tripResult, len(filteredKeys))
+	sem := make(chan struct{}, maxConcurrency)
+
+	var wg sync.WaitGroup
+	for _, key := range filteredKeys {
+		wg.Add(1)
+
+		go func(k string) {
+			defer wg.Done()
+			sem <- struct{}{}
+			defer func() { <-sem }()
+
+			data, err := s.s3svc.DownloadFile(ctx, S3_BUCKET_NAME, k)
+			if err != nil {
+				results <- tripResult{nil, fmt.Errorf("download failed for %s: %w", k, err)}
+				return
+			}
+			var trip Trip
+			if err := json.Unmarshal(data, &trip); err != nil {
+				results <- tripResult{nil, fmt.Errorf("unmarshal failed for %s: %w", k, err)}
+				return
+			}
+			results <- tripResult{&trip, nil}
+		}(key)
+	}
+
+	wg.Wait()
+	close(results)
+
+	// Collect only successfully downloaded trip files
+	var trips []*Trip
+	for res := range results {
+		if res.err != nil {
+			// fmt.Println(res.err) // TODO: log properly debug or warn
+			continue
+		}
+		trips = append(trips, res.trip)
 	}
 
 	return trips, nil
+}
+
+func extractDateFromKey(key string) string {
+	// Expected key format: gps/data/schoolID/vehicleID/YYYY-MM-DD/tripID.json
+	parts := strings.Split(key, "/")
+	part := parts[len(strings.Split(BASE_PATH, "/"))+2]
+
+	if len(part) == 10 && part[4] == '-' && part[7] == '-' {
+		return part
+	}
+	return ""
 }

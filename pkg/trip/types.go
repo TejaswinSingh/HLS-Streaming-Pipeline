@@ -17,10 +17,9 @@ type Trip struct {
 	SchoolID     string        `bson:"school_id" json:"school_id"`
 	VehicleID    bson.ObjectID `bson:"vehicle_id" json:"vehicle_id"`
 	GpsTrackerID string        `bson:"gps_tracker_id" json:"gps_tracker_id"`
-	// StoragePath string       `bson:"storage_path" json:"storage_path"`
-	StartTime   time.Time    `bson:"start_time" json:"start_time"`
-	EndTime     time.Time    `bson:"end_time,omitempty" json:"end_time,omitempty"`
-	Coordinates []Coordinate `bson:"coordinates" json:"coordinates"`
+	StartTime    time.Time     `bson:"start_time" json:"start_time"`
+	EndTime      time.Time     `bson:"end_time,omitempty" json:"end_time,omitempty"`
+	Coordinates  []Coordinate  `bson:"coordinates" json:"coordinates"`
 }
 
 const (
