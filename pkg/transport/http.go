@@ -100,6 +100,10 @@ func decodeHTTPGetVehicleTripsRequest(_ context.Context, r *http.Request) (any, 
 	if err != nil {
 		return nil, svcErrors.ErrBadRequest
 	}
+	// check `before` is not less than `after`
+	if before.Before(after) {
+		return nil, svcErrors.ErrBadRequest
+	}
 	return endpoints.GetVehicleTripsRequest{
 		SchoolID:  schID,
 		VehicleID: vclID,

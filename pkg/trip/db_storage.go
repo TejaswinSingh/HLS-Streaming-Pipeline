@@ -226,10 +226,10 @@ func (s *MongoTripStorage) GetVehicleTripsFromS3(
 		if err != nil {
 			continue
 		}
-		if after != nil && !fileDate.After(*after) {
+		if after != nil && fileDate.Before(*after) {
 			continue
 		}
-		if before != nil && !fileDate.Before(*before) {
+		if before != nil && fileDate.After(*before) {
 			continue
 		}
 		filteredKeys = append(filteredKeys, key)
