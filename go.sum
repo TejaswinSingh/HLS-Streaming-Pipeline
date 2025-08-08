@@ -1,5 +1,5 @@
-github.com/Resolyte-official/service-governance v0.1.0 h1:O8SMF5eyjQeM+p4M3OzGSN77jbDNe51LFYIx2dkURZU=
-github.com/Resolyte-official/service-governance v0.1.0/go.mod h1:xdkTIQyLnMWlkUrgqwfCGCOjzk3WhH32bV4xwm5JwcA=
+github.com/Resolyte-official/service-governance v0.1.0 h1:yam68frBHW3YSYrE5ufaGCvvqu8HWdlB9gh7ba7tjro=
+github.com/Resolyte-official/service-governance v0.1.0/go.mod h1:FiTZ/TEen/ieaIdzvOefDL2DIXkIqeNSC5DWm96Yuuk=
 github.com/VividCortex/gohistogram v1.0.0 h1:6+hBz+qvs0JOrrNhhmR7lFxo5sINxBCGXrdtl/UvroE=
 github.com/VividCortex/gohistogram v1.0.0/go.mod h1:Pf5mBqqDxYaXu3hDrrU+w6nw50o/4+TcAqDqk/vUH7g=
 github.com/aws/aws-sdk-go-v2 v1.36.5 h1:0OF9RiEMEdDdZEMqF9MRjevyxAQcf6gY+E7vwBILFj0=
