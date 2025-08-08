@@ -8,7 +8,9 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/Resolyte-official/service-governance/pkg/pb"
 	"github.com/Resolyte-official/service-gps/pkg/config"
+	"github.com/Resolyte-official/service-gps/pkg/contextkeys"
 	"github.com/Resolyte-official/service-gps/pkg/endpoints"
 	svcErrors "github.com/Resolyte-official/service-gps/pkg/errors"
 	grpcClient "github.com/Resolyte-official/service-gps/pkg/grpc"
@@ -84,12 +86,11 @@ func decodeHTTPEndTripRequest(_ context.Context, r *http.Request) (any, error) {
 	return endpoints.EndTripRequest{GpsTrackerID: gpsID}, nil
 }
 
-func decodeHTTPGetVehicleTripsRequest(_ context.Context, r *http.Request) (any, error) {
-	schID := r.URL.Query().Get("school_id")
+func decodeHTTPGetVehicleTripsRequest(ctx context.Context, r *http.Request) (any, error) {
 	vclID := r.URL.Query().Get("vehicle_id")
 	afterStr := r.URL.Query().Get("after")
 	beforeStr := r.URL.Query().Get("before")
-	if schID == "" || vclID == "" || afterStr == "" || beforeStr == "" {
+	if vclID == "" || afterStr == "" || beforeStr == "" {
 		return nil, svcErrors.ErrBadRequest
 	}
 	after, err := time.Parse(YYYYMMDD, afterStr)
@@ -105,7 +106,7 @@ func decodeHTTPGetVehicleTripsRequest(_ context.Context, r *http.Request) (any, 
 		return nil, svcErrors.ErrBadRequest
 	}
 	return endpoints.GetVehicleTripsRequest{
-		SchoolID:  schID,
+		Claims:    ctx.Value(contextkeys.PbClaimsKey).(*pb.Claims),
 		VehicleID: vclID,
 		After:     after,
 		Before:    before,

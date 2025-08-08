@@ -6,11 +6,13 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/Resolyte-official/service-governance/pkg/pb"
 	"github.com/Resolyte-official/service-gps/pkg/config"
 	mongodb "github.com/Resolyte-official/service-gps/pkg/db/mongo"
 	svcErrors "github.com/Resolyte-official/service-gps/pkg/errors"
 	"github.com/Resolyte-official/service-gps/pkg/trip"
 	"github.com/Resolyte-official/service-gps/pkg/utils"
+	uuidUtils "github.com/Resolyte-official/service-gps/pkg/utils/uuid"
 	"github.com/google/uuid"
 	"go.mongodb.org/mongo-driver/v2/bson"
 )
@@ -107,7 +109,7 @@ func (s *gpsService) EndTrip(ctx context.Context, gpsTrackerID string) (int, err
 	return http.StatusOK, nil
 }
 
-func (s *gpsService) GetVehicleTrips(ctx context.Context, schoolID, vehicleID string, after, before time.Time) ([]*trip.Trip, int, error) {
+func (s *gpsService) GetVehicleTrips(ctx context.Context, claims *pb.Claims, vehicleID string, after, before time.Time) ([]*trip.Trip, int, error) {
 	fail := func(err error) ([]*trip.Trip, int, error) {
 		return nil, 0, err
 	}
@@ -128,9 +130,30 @@ func (s *gpsService) GetVehicleTrips(ctx context.Context, schoolID, vehicleID st
 	if err := res.Decode(&vcl); err != nil {
 		return fail(svcErrors.ErrInternalServer.WithInternalErr(err))
 	}
+
+	id := claims.Sub
+	userID, err := uuid.Parse(id)
+	if err != nil {
+		return fail(svcErrors.ErrInternalServer.WithInternalErr(err))
+	}
+	coll = s.mongoSvc.GetCollection("metadata", "users")
+	filter = bson.M{"_id": uuidUtils.UUIDToBinary(userID)}
+	res2, err := s.mongoSvc.FindOne(ctx, coll, filter)
+	if err != nil {
+		return fail(err)
+	}
+	var userDoc bson.M
+	if err := res2.Decode(&userDoc); err != nil {
+		return fail(svcErrors.ErrMongo.WithInternalErr(err))
+	}
+	schoolID, ok := userDoc["school_id"].(string)
+	if !ok || schoolID == "" {
+		return fail(svcErrors.ErrMongo.WithInternalErr(errors.New("missing metadata")))
+	}
+
 	// validate school id
 	if schoolID != vcl.SchoolID {
-		return fail(svcErrors.ErrBadRequest.WithInternalErr(errors.New("invalid school_id")))
+		return fail(svcErrors.ErrAccessDenied.WithInternalErr(errors.New("vehicle is not associated with this school")))
 	}
 
 	// fetch trips b/w after and before

@@ -63,7 +63,7 @@ func MakeEndTripEndpoint(svc gps.Service) endpoint.Endpoint {
 func MakeGetVehicleTripsEndpoint(svc gps.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request any) (any, error) {
 		r := request.(GetVehicleTripsRequest)
-		trips, status, err := svc.GetVehicleTrips(ctx, r.SchoolID, r.VehicleID, r.After, r.Before)
+		trips, status, err := svc.GetVehicleTrips(ctx, r.Claims, r.VehicleID, r.After, r.Before)
 		if err != nil {
 			return nil, err
 		}

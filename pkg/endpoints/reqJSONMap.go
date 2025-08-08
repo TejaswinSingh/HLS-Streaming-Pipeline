@@ -3,6 +3,7 @@ package endpoints
 import (
 	"time"
 
+	"github.com/Resolyte-official/service-governance/pkg/pb"
 	"github.com/Resolyte-official/service-gps/pkg/trip"
 )
 
@@ -33,10 +34,10 @@ type EndTripResponse struct {
 func (r EndTripResponse) GetStatus() int { return r.Status }
 
 type GetVehicleTripsRequest struct {
-	SchoolID  string    `json:"school_id"`
-	VehicleID string    `json:"vehicle_id"`
-	After     time.Time `json:"after"`
-	Before    time.Time `json:"before"`
+	Claims    *pb.Claims
+	VehicleID string
+	After     time.Time
+	Before    time.Time
 }
 type GetVehicleTripsResponse struct {
 	Trips  []*trip.Trip `json:"trips"`
