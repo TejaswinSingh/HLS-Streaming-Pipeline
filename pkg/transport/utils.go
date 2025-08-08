@@ -5,7 +5,11 @@ import (
 	"net/http"
 	"reflect"
 
+	"github.com/Resolyte-official/service-governance/pkg/pb"
+	svcErrors "github.com/Resolyte-official/service-gps/pkg/errors"
+	grpcClient "github.com/Resolyte-official/service-gps/pkg/grpc"
 	"github.com/Resolyte-official/service-gps/pkg/logging"
+	"github.com/google/uuid"
 )
 
 type ResponseWriter struct {
@@ -65,4 +69,42 @@ func (e *LogEntry) Log(logger logging.Logger) {
 	} else { // 500 errors
 		logger.ErrorMap(errors.New(e.Error), keyVals)
 	}
+}
+
+func governanceCallback(w http.ResponseWriter, r *http.Request, govClient grpcClient.GovernanceClient, obj, act string) (*pb.Claims, error) {
+
+	// custom response writer used for propagating info b/w middlewares
+	rw, _ := w.(*ResponseWriter)
+
+	cookie, err := r.Cookie(string(AccessToken))
+	if err != nil || cookie.Valid() != nil || cookie.Value == "" {
+		return nil, svcErrors.ErrUnauthorized
+	}
+
+	// grpc request to governance service for verifying token
+	resp, err := govClient.Authorize(
+		r.Context(),
+		cookie.Value, // token
+		obj,
+		act,
+	)
+	if err != nil {
+		return nil, svcErrors.ErrInternalServer.WithInternalErr(err)
+	}
+	claims := resp.GetClaims()
+	if claims != nil && uuid.Validate(claims.Sub) == nil {
+		rw.UserID = claims.Sub
+	}
+	if !resp.Eft {
+		switch resp.Status {
+		case http.StatusUnauthorized:
+			return nil, svcErrors.ErrUnauthorized
+		case http.StatusForbidden:
+			return nil, svcErrors.ErrAccessDenied
+		default:
+			return nil, svcErrors.ErrInternalServer
+		}
+	}
+
+	return claims, nil
 }

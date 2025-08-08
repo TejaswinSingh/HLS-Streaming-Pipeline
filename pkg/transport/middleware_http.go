@@ -9,7 +9,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Resolyte-official/service-governance/pkg/pb"
 	"github.com/Resolyte-official/service-gps/pkg/config"
 	"github.com/Resolyte-official/service-gps/pkg/contextkeys"
 	svcErrors "github.com/Resolyte-official/service-gps/pkg/errors"
@@ -125,52 +124,22 @@ func AuthMiddleware(govClient grpcClient.GovernanceClient) func(http.Handler) ht
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
-			// custom response writer used for propagating info b/w middlewares
-			rw, _ := w.(*ResponseWriter)
-
-			var claims *pb.Claims
-
 			switch r.URL.Path {
 			case "/gps/healthz", "/gps/start-trip", "/gps/end-trip", "/metrics":
-				// unprotected endpoints
-			default:
-
-				cookie, err := r.Cookie(string(AccessToken))
-				if err != nil || cookie.Valid() != nil || cookie.Value == "" {
-					encodeError(r.Context(), svcErrors.ErrUnauthorized, w)
-					return
-				}
-
-				// grpc request to governance service for verifying token
-				resp, err := govClient.Authorize(
-					r.Context(),
-					cookie.Value,                // token
-					"gps.vehicles.trip-history", // obj
-					"view",                      // act
-				)
+				// unprotected paths
+			case "/gps/get-vehicle-trips":
+				claims, err := governanceCallback(w, r, govClient, "gps.vehicles.trip-history", "view")
 				if err != nil {
-					encodeError(r.Context(), svcErrors.ErrInternalServer.WithInternalErr(err), w)
+					encodeError(r.Context(), err, w)
 					return
 				}
-				claims = resp.GetClaims()
-				if claims != nil && uuid.Validate(claims.Sub) == nil {
-					rw.UserID = claims.Sub
-				}
-				if !resp.Eft {
-					switch resp.Status {
-					case http.StatusUnauthorized:
-						encodeError(r.Context(), svcErrors.ErrUnauthorized, w)
-					case http.StatusForbidden:
-						encodeError(r.Context(), svcErrors.ErrAccessDenied, w)
-					default:
-						encodeError(r.Context(), svcErrors.ErrInternalServer, w)
-					}
-					return
-				}
+				ctx := context.WithValue(r.Context(), contextkeys.PbClaimsKey, claims)
+				r = r.WithContext(ctx)
+			default:
+				// 404 paths
 			}
 
-			ctx := context.WithValue(r.Context(), contextkeys.PbClaimsKey, claims)
-			next.ServeHTTP(w, r.WithContext(ctx))
+			next.ServeHTTP(w, r)
 		})
 	}
 }
