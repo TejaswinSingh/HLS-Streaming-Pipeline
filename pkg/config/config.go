@@ -17,6 +17,7 @@ type Configuration struct {
 	CorsOrigins        []string
 	GovernanceGrpcAddr string
 	Mongo              mongodb.MongoConfiguration
+	S3BucketName       string
 }
 
 const (
@@ -40,6 +41,7 @@ func NewEnvironmentConfiguration() Configuration {
 		HttpPort:           envString("GPS_HTTP_PORT", defaultHTTPPort),
 		CorsOrigins:        parseStringsEnv("CORS_ORIGINS", []string{defaultCORSOrigin}),
 		GovernanceGrpcAddr: requireEnv("GOVERNANCE_GRPC_ADDR"),
+		S3BucketName:       requireEnv("S3_BUCKET_NAME"),
 		Mongo: mongodb.MongoConfiguration{
 			Host:     envString("MONGO_HOST", defaultMongoHost),
 			Port:     envString("MONGO_PORT", defaultMongoPort),

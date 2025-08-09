@@ -70,7 +70,7 @@ func main() {
 			ExposeHeaders:    []string{"Content-Type", "X-Request-ID"},                                                // Allow any headers to be exposed
 			AllowCredentials: true,                                                                                    // Allow credentials to be included
 		}
-		dbTripStorage = trip.NewDBTripStorage(mongoService, s3svc)
+		dbTripStorage = trip.NewDBTripStorage(mongoService, s3svc, &envConfig)
 		fetchList     = utils.NewFetchList(lw, dbTripStorage)
 		metrics       = metrics.NewGPSMetrics()
 		service       = gps.NewService(&envConfig, mongoService, dbTripStorage, fetchList)

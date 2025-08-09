@@ -10,6 +10,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/Resolyte-official/service-gps/pkg/config"
 	mongodb "github.com/Resolyte-official/service-gps/pkg/db/mongo"
 	svcErrors "github.com/Resolyte-official/service-gps/pkg/errors"
 	storage "github.com/Resolyte-official/service-gps/pkg/storage/s3"
@@ -19,10 +20,9 @@ import (
 )
 
 const (
-	DB             = "gps"
-	Coll           = "trips"
-	S3_BUCKET_NAME = "resolyte-s3"
-	BASE_PATH      = "gps/data"
+	DB        = "gps"
+	Coll      = "trips"
+	BASE_PATH = "gps/data"
 )
 
 type DBTripStorage interface {
@@ -35,14 +35,16 @@ type DBTripStorage interface {
 }
 
 type MongoTripStorage struct {
-	mongoSvc *mongodb.MongoService
-	s3svc    storage.StorageService
+	mongoSvc  *mongodb.MongoService
+	s3svc     storage.StorageService
+	envconfig *config.Configuration
 }
 
-func NewDBTripStorage(mongoSvc *mongodb.MongoService, s3svc storage.StorageService) DBTripStorage {
+func NewDBTripStorage(mongoSvc *mongodb.MongoService, s3svc storage.StorageService, envconfig *config.Configuration) DBTripStorage {
 	return &MongoTripStorage{
-		mongoSvc: mongoSvc,
-		s3svc:    s3svc,
+		mongoSvc:  mongoSvc,
+		s3svc:     s3svc,
+		envconfig: envconfig,
 	}
 }
 
@@ -107,7 +109,7 @@ func (s *MongoTripStorage) EndTrip(ctx context.Context, tripID string) error {
 
 		// make path and upload to S3
 		path := s.MakeTripPath(now, trip.SchoolID, trip.VehicleID.Hex(), uuidVal.String())
-		err = s.s3svc.UploadFile(ctx, S3_BUCKET_NAME, path, bytes.NewReader(buf))
+		err = s.s3svc.UploadFile(ctx, s.envconfig.S3BucketName, path, bytes.NewReader(buf))
 		if err != nil {
 			fmt.Printf("s3 upload failed: upload trip [%s] to s3 %s\n", tripID, err)
 			return
@@ -210,7 +212,7 @@ func (s *MongoTripStorage) GetVehicleTripsFromS3(
 	prefix := filepath.Join(BASE_PATH, schoolID, vehicleID) + "/"
 	const maxConcurrency = 10
 
-	objectKeys, err := s.s3svc.ListFiles(ctx, S3_BUCKET_NAME, prefix)
+	objectKeys, err := s.s3svc.ListFiles(ctx, s.envconfig.S3BucketName, prefix)
 	if err != nil {
 		return nil, svcErrors.ErrInternalServer.WithInternalErr(err)
 	}
@@ -253,7 +255,7 @@ func (s *MongoTripStorage) GetVehicleTripsFromS3(
 			sem <- struct{}{}
 			defer func() { <-sem }()
 
-			data, err := s.s3svc.DownloadFile(ctx, S3_BUCKET_NAME, k)
+			data, err := s.s3svc.DownloadFile(ctx, s.envconfig.S3BucketName, k)
 			if err != nil {
 				results <- tripResult{nil, fmt.Errorf("download failed for %s: %w", k, err)}
 				return
