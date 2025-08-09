@@ -140,7 +140,8 @@ func main() {
 				case <-ticker.C:
 					err := mongoService.Ping(ctx)
 					if err != nil {
-						mainLogger.Warnf("MongoService | status disconnected [%s]", err.Error())
+						mainLogger.Error(err, "MongoService | status disconnected")
+						// return err
 					} else {
 						mainLogger.Info("MongoService | status healthy")
 					}
