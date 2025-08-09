@@ -14,7 +14,6 @@ type Configuration struct {
 	Env                GoEnv
 	HttpMode           HttpMode
 	HttpPort           string
-	SecretKey          []byte
 	CorsOrigins        []string
 	GovernanceGrpcAddr string
 	Mongo              mongodb.MongoConfiguration
@@ -35,16 +34,10 @@ func NewEnvironmentConfiguration() Configuration {
 		httpMode = Https
 	}
 
-	secretKey := []byte(requireEnv("SECRET_KEY"))
-	if len(secretKey) < 32 {
-		panic(fmt.Errorf("SECRET_KEY must be at least 32 bytes, got %d", len(secretKey)))
-	}
-
 	return Configuration{
 		Env:                ValidateEnv(GoEnv(os.Getenv("ENV"))),
 		HttpMode:           ValidateHttpMode(httpMode),
 		HttpPort:           envString("GPS_HTTP_PORT", defaultHTTPPort),
-		SecretKey:          secretKey,
 		CorsOrigins:        parseStringsEnv("CORS_ORIGINS", []string{defaultCORSOrigin}),
 		GovernanceGrpcAddr: requireEnv("GOVERNANCE_GRPC_ADDR"),
 		Mongo: mongodb.MongoConfiguration{
