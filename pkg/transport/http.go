@@ -27,44 +27,48 @@ const (
 func NewHTTPHandler(ep endpoints.Set, envConfig *config.Configuration, corsConfig *CorsOptions, govClient grpcClient.GovernanceClient, metrics *metrics.Metrics, lw logging.LogWriter) http.Handler {
 	m := http.NewServeMux()
 
-	m.Handle("/metrics", promhttp.Handler())
+	logger := logging.NewContextLogger(lw, "HttpHandler")
 
-	m.Handle("GET /gps/healthz", httptransport.NewServer(
+	wrap := func(h http.Handler) http.Handler {
+		return AuthMiddleware(govClient)(
+			CorsMiddleware(corsConfig)(
+				TracingLoggingMetricsMiddleware(logger, envConfig, metrics)(h),
+			),
+		)
+	}
+
+	m.Handle("/metrics", wrap(promhttp.Handler()))
+
+	m.Handle("GET /gps/healthz", wrap(httptransport.NewServer(
 		ep.ServiceStatusEndpoint,
 		decodeHTTPServiceStatusRequest,
 		encodeResponse,
 		// the below is called immediately if error occurs in any of the above
 		httptransport.ServerErrorEncoder(encodeError),
-	))
+	)))
 
-	m.Handle("POST /gps/start-trip", httptransport.NewServer(
+	m.Handle("POST /gps/start-trip", wrap(httptransport.NewServer(
 		ep.StartTripEndpoint,
 		decodeHTTPStartTripRequest,
 		encodeResponse,
 		httptransport.ServerErrorEncoder(encodeError),
-	))
+	)))
 
-	m.Handle("POST /gps/end-trip", httptransport.NewServer(
+	m.Handle("POST /gps/end-trip", wrap(httptransport.NewServer(
 		ep.EndTripEndpoint,
 		decodeHTTPEndTripRequest,
 		encodeResponse,
 		httptransport.ServerErrorEncoder(encodeError),
-	))
+	)))
 
-	m.Handle("GET /gps/get-vehicle-trips", httptransport.NewServer(
+	m.Handle("GET /gps/get-vehicle-trips", wrap(httptransport.NewServer(
 		ep.GetVehicleTripsEndpoint,
 		decodeHTTPGetVehicleTripsRequest,
 		encodeResponse,
 		httptransport.ServerErrorEncoder(encodeError),
-	))
+	)))
 
-	logger := logging.NewContextLogger(lw, "HttpHandler")
-
-	handler := AuthMiddleware(govClient)(m)
-	handler = CorsMiddleware(corsConfig)(handler)
-	handler = TracingLoggingMetricsMiddleware(logger, envConfig, metrics)(handler)
-
-	return handler
+	return m
 }
 
 func decodeHTTPServiceStatusRequest(_ context.Context, _ *http.Request) (any, error) {
