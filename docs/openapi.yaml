@@ -9,7 +9,7 @@ servers:
     description: Local server
 
 paths:
-  /gps/healthz:
+  /healthz:
     get:
       summary: Check service health
       security: []

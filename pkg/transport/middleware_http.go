@@ -89,8 +89,8 @@ func TracingLoggingMetricsMiddleware(logger logging.Logger, envConfig *config.Co
 				metrics.RequestCount.With(labels...).Add(1)
 			}()
 
-			// don't trace preflight request and request to /metrics endpoint
-			if r.Method != http.MethodOptions && r.URL.Path != "/metrics" {
+			// don't trace request to /metrics endpoint
+			if r.URL.Path != "/metrics" {
 
 				// requestID is required
 				reqID := r.Header.Get("X-Request-ID")
@@ -125,10 +125,10 @@ func AuthMiddleware(govClient grpcClient.GovernanceClient) func(http.Handler) ht
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 			switch r.URL.Path {
-			case "/gps/healthz", "/gps/start-trip", "/gps/end-trip", "/metrics":
+			case "/healthz", "/start-trip", "/end-trip", "/metrics":
 				// unprotected paths
-			case "/gps/get-vehicle-trips":
-				claims, err := governanceCallback(w, r, govClient, "gps.vehicles.trip-history", "view")
+			case "/get-vehicle-trips":
+				claims, err := governanceCallback(w, r, govClient, "gps.vehicles.trip_history", "view")
 				if err != nil {
 					encodeError(r.Context(), err, w)
 					return

@@ -31,15 +31,13 @@ func NewHTTPHandler(ep endpoints.Set, envConfig *config.Configuration, corsConfi
 
 	wrap := func(h http.Handler) http.Handler {
 		return TracingLoggingMetricsMiddleware(logger, envConfig, metrics)(
-			CorsMiddleware(corsConfig)(
-				AuthMiddleware(govClient)(h),
-			),
+			AuthMiddleware(govClient)(h),
 		)
 	}
 
 	m.Handle("/metrics", wrap(promhttp.Handler()))
 
-	m.Handle("GET /gps/healthz", wrap(httptransport.NewServer(
+	m.Handle("GET /healthz", wrap(httptransport.NewServer(
 		ep.ServiceStatusEndpoint,
 		decodeHTTPServiceStatusRequest,
 		encodeResponse,
@@ -47,28 +45,28 @@ func NewHTTPHandler(ep endpoints.Set, envConfig *config.Configuration, corsConfi
 		httptransport.ServerErrorEncoder(encodeError),
 	)))
 
-	m.Handle("POST /gps/start-trip", wrap(httptransport.NewServer(
+	m.Handle("POST /start-trip", wrap(httptransport.NewServer(
 		ep.StartTripEndpoint,
 		decodeHTTPStartTripRequest,
 		encodeResponse,
 		httptransport.ServerErrorEncoder(encodeError),
 	)))
 
-	m.Handle("POST /gps/end-trip", wrap(httptransport.NewServer(
+	m.Handle("POST /end-trip", wrap(httptransport.NewServer(
 		ep.EndTripEndpoint,
 		decodeHTTPEndTripRequest,
 		encodeResponse,
 		httptransport.ServerErrorEncoder(encodeError),
 	)))
 
-	m.Handle("GET /gps/get-vehicle-trips", wrap(httptransport.NewServer(
+	m.Handle("GET /get-vehicle-trips", wrap(httptransport.NewServer(
 		ep.GetVehicleTripsEndpoint,
 		decodeHTTPGetVehicleTripsRequest,
 		encodeResponse,
 		httptransport.ServerErrorEncoder(encodeError),
 	)))
 
-	return m
+	return CorsMiddleware(corsConfig)(m)
 }
 
 func decodeHTTPServiceStatusRequest(_ context.Context, _ *http.Request) (any, error) {
