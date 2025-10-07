@@ -9,10 +9,10 @@ import (
 	"strings"
 	"time"
 
+	grpcClient "github.com/Resolyte-official/service-gps/pkg/client/grpc"
 	"github.com/Resolyte-official/service-gps/pkg/config"
 	"github.com/Resolyte-official/service-gps/pkg/contextkeys"
 	svcErrors "github.com/Resolyte-official/service-gps/pkg/errors"
-	grpcClient "github.com/Resolyte-official/service-gps/pkg/grpc"
 	"github.com/Resolyte-official/service-gps/pkg/logging"
 	"github.com/Resolyte-official/service-gps/pkg/metrics"
 	"github.com/google/uuid"

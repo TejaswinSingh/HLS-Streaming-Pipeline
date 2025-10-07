@@ -11,10 +11,10 @@ import (
 	"time"
 
 	gps "github.com/Resolyte-official/service-gps/pkg"
+	grpcClient "github.com/Resolyte-official/service-gps/pkg/client/grpc"
 	"github.com/Resolyte-official/service-gps/pkg/config"
 	mongodb "github.com/Resolyte-official/service-gps/pkg/db/mongo"
 	"github.com/Resolyte-official/service-gps/pkg/endpoints"
-	grpcClient "github.com/Resolyte-official/service-gps/pkg/grpc"
 	"github.com/Resolyte-official/service-gps/pkg/logging"
 	"github.com/Resolyte-official/service-gps/pkg/metrics"
 	storage "github.com/Resolyte-official/service-gps/pkg/storage/s3"

@@ -23,8 +23,8 @@ type Configuration struct {
 const (
 	defaultCORSOrigin = ""
 	defaultHTTPPort   = "12003"
-	defaultMongoHost  = "mongo"
-	defaultMongoPort  = "27017"
+	// defaultMongoHost  = "mongo"
+	// defaultMongoPort  = "27017"
 )
 
 // NewEnvironmentConfiguration creates a configuration populated from os environment variables.
@@ -43,10 +43,11 @@ func NewEnvironmentConfiguration() Configuration {
 		GovernanceGrpcAddr: requireEnv("GOVERNANCE_GRPC_ADDR"),
 		S3BucketName:       requireEnv("S3_BUCKET_NAME"),
 		Mongo: mongodb.MongoConfiguration{
-			Host:     envString("MONGO_HOST", defaultMongoHost),
-			Port:     envString("MONGO_PORT", defaultMongoPort),
-			Username: requireEnv("MONGO_GPS_USER"),
-			Password: requireEnv("MONGO_GPS_PASSWORD"),
+			// Host:     envString("MONGO_HOST", defaultMongoHost),
+			// Port:     envString("MONGO_PORT", defaultMongoPort),
+			Username:         requireEnv("MONGO_GPS_USER"),
+			Password:         requireEnv("MONGO_GPS_PASSWORD"),
+			ConnectionString: requireEnv("MONGO_CONNECTION_STRING"),
 		},
 	}
 }

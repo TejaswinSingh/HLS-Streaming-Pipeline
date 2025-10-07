@@ -8,12 +8,12 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/Resolyte-official/service-governance/pkg/pb"
+	pb "github.com/Resolyte-official/gen_proto/pkg/governance"
+	grpcClient "github.com/Resolyte-official/service-gps/pkg/client/grpc"
 	"github.com/Resolyte-official/service-gps/pkg/config"
 	"github.com/Resolyte-official/service-gps/pkg/contextkeys"
 	"github.com/Resolyte-official/service-gps/pkg/endpoints"
 	svcErrors "github.com/Resolyte-official/service-gps/pkg/errors"
-	grpcClient "github.com/Resolyte-official/service-gps/pkg/grpc"
 	"github.com/Resolyte-official/service-gps/pkg/logging"
 	"github.com/Resolyte-official/service-gps/pkg/metrics"
 	httptransport "github.com/go-kit/kit/transport/http"
@@ -65,6 +65,11 @@ func NewHTTPHandler(ep endpoints.Set, envConfig *config.Configuration, corsConfi
 		encodeResponse,
 		httptransport.ServerErrorEncoder(encodeError),
 	)))
+
+	// match all: return 404
+	m.Handle("/", wrap(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, "404 not found", http.StatusNotFound)
+	})))
 
 	return CorsMiddleware(corsConfig)(m)
 }

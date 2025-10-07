@@ -3,7 +3,7 @@ module github.com/Resolyte-official/service-gps
 go 1.24.2
 
 require (
-	github.com/Resolyte-official/service-governance v0.1.2
+	github.com/Resolyte-official/gen_proto v0.1.1
 	github.com/aws/aws-sdk-go-v2 v1.39.0
 	github.com/aws/aws-sdk-go-v2/config v1.31.8
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.88.1

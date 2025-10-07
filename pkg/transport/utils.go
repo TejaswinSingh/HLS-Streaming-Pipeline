@@ -5,9 +5,9 @@ import (
 	"net/http"
 	"reflect"
 
-	"github.com/Resolyte-official/service-governance/pkg/pb"
+	pb "github.com/Resolyte-official/gen_proto/pkg/governance"
+	grpcClient "github.com/Resolyte-official/service-gps/pkg/client/grpc"
 	svcErrors "github.com/Resolyte-official/service-gps/pkg/errors"
-	grpcClient "github.com/Resolyte-official/service-gps/pkg/grpc"
 	"github.com/Resolyte-official/service-gps/pkg/logging"
 	"github.com/google/uuid"
 )

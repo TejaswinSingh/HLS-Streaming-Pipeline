@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/Resolyte-official/service-governance/pkg/pb"
+	pb "github.com/Resolyte-official/gen_proto/pkg/governance"
 	"github.com/Resolyte-official/service-gps/pkg/trip"
 )
 

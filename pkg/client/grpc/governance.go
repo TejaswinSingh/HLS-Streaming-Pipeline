@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/Resolyte-official/service-governance/pkg/pb"
+	pb "github.com/Resolyte-official/gen_proto/pkg/governance"
 	"github.com/Resolyte-official/service-gps/pkg/contextkeys"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
